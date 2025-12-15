@@ -44,6 +44,8 @@ const transformOrder = (order: any): Order => {
         price: order.price,
         status: order.status,
         location: order.location,
+        lat: order.lat,  // GPS koordinatasi - kenglik
+        lng: order.lng,  // GPS koordinatasi - uzunlik
         createdAt: order.createdAt,
         aiSuggested: order.aiSuggested,
         review: order.review
@@ -125,15 +127,32 @@ export const ApiService = {
 
     // --- USERS ---
     getWorkers: async (): Promise<WorkerProfile[]> => {
-        const res = await fetch(`${API_URL}/users?role=WORKER`);
-        const data = await res.json();
-        return data.map(transformWorker);
+        try {
+            const res = await fetch(`${API_URL}/users?role=WORKER`);
+            if (!res.ok) {
+                console.error('Failed to fetch workers:', res.status);
+                return [];
+            }
+            const data = await res.json();
+            if (!Array.isArray(data)) return [];
+            return data.map(transformWorker);
+        } catch (error) {
+            console.error('Error fetching workers:', error);
+            return [];
+        }
     },
 
     getCustomers: async (): Promise<User[]> => {
-        const res = await fetch(`${API_URL}/users?role=CUSTOMER`);
-        const data = await res.json();
-        return data.map(transformUser);
+        try {
+            const res = await fetch(`${API_URL}/users?role=CUSTOMER`);
+            if (!res.ok) return [];
+            const data = await res.json();
+            if (!Array.isArray(data)) return [];
+            return data.map(transformUser);
+        } catch (error) {
+            console.error('Error fetching customers:', error);
+            return [];
+        }
     },
 
     getAllUsers: async (): Promise<User[]> => {
@@ -175,9 +194,22 @@ export const ApiService = {
 
     // --- ORDERS ---
     getOrders: async (): Promise<Order[]> => {
-        const res = await fetch(`${API_URL}/orders`);
-        const data = await res.json();
-        return data.map(transformOrder);
+        try {
+            const res = await fetch(`${API_URL}/orders`);
+            if (!res.ok) {
+                console.error('Failed to fetch orders:', res.status);
+                return [];
+            }
+            const data = await res.json();
+            if (!Array.isArray(data)) {
+                console.error('Orders response is not an array:', data);
+                return [];
+            }
+            return data.map(transformOrder);
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+            return [];
+        }
     },
 
     createOrder: async (order: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> => {
@@ -232,6 +264,20 @@ export const ApiService = {
         });
         const data = await res.json();
         return transformMessage(data);
+    },
+
+    markChatAsRead: async (chatId: string, userId: string): Promise<boolean> => {
+        try {
+            const res = await fetch(`${API_URL}/chats/${chatId}/read`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+            });
+            return res.ok;
+        } catch (error) {
+            console.error('Error marking chat as read:', error);
+            return false;
+        }
     },
 
     // --- NOTIFICATIONS ---

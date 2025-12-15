@@ -3,7 +3,9 @@ import { GeminiService } from '../../services/geminiService';
 import { MockService } from '../../services/mockDb';
 import { Loader2, Sparkles, ChevronRight, MapPin } from '../../components/Icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { getSavedLocation } from '../../services/locationService';
+import { getSavedLocation, LocationData } from '../../services/locationService';
+import { MapLocationPicker } from '../../components/MapLocationPicker';
+import { Map, Edit3 } from 'lucide-react';
 
 export const CreateOrder = () => {
   const [searchParams] = useSearchParams();
@@ -17,17 +19,29 @@ export const CreateOrder = () => {
   const [category, setCategory] = useState(searchParams.get('cat') || '');
   const [price, setPrice] = useState('');
   const [locationText, setLocationText] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
+  const [isMapOpen, setIsMapOpen] = useState(false);
 
   // Joylashuvni olish
   useEffect(() => {
     const savedLocation = getSavedLocation();
     if (savedLocation) {
+      setSelectedLocation(savedLocation);
       setLocationText(savedLocation.district
         ? `${savedLocation.city}, ${savedLocation.district}`
         : savedLocation.city || 'Hozirgi manzil'
       );
     }
   }, []);
+
+  // Handle location selection from map
+  const handleLocationSelect = (location: LocationData) => {
+    setSelectedLocation(location);
+    setLocationText(location.district
+      ? `${location.city}, ${location.district}`
+      : location.city || location.address || 'Tanlangan manzil'
+    );
+  };
 
   const handleAISuggest = async () => {
     if (!input.trim()) return;
@@ -55,8 +69,8 @@ export const CreateOrder = () => {
       return;
     }
 
-    // GPS koordinatalarini olish
-    const savedLocation = getSavedLocation();
+    // Use selected location from map or saved location
+    const locationToUse = selectedLocation || getSavedLocation();
 
     await MockService.createOrder({
       customerId: currentUser.id,
@@ -65,8 +79,8 @@ export const CreateOrder = () => {
       category: category,
       price: Number(price),
       location: locationText || 'Hozirgi manzil',
-      lat: savedLocation?.lat,
-      lng: savedLocation?.lng,
+      lat: locationToUse?.lat,
+      lng: locationToUse?.lng,
       aiSuggested: !!orderDetails
     });
     navigate('/customer/home');
@@ -150,15 +164,34 @@ export const CreateOrder = () => {
           />
         </div>
 
-        {/* Manzil - avtomatik */}
+        {/* Manzil - xaritadan tanlash */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">📍 Manzil</label>
-          <div className="w-full p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 flex items-center gap-2">
-            <MapPin size={16} className="text-blue-500" />
-            <span>{locationText || 'Joylashuv aniqlanmoqda...'}</span>
-            {locationText && <span className="text-green-500 text-xs ml-auto">✓ GPS</span>}
-          </div>
-          <p className="text-xs text-gray-400 mt-1">Sizning hozirgi joylashuvingiz avtomatik aniqlanadi</p>
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">📍 Ish joyi</label>
+          <button
+            type="button"
+            onClick={() => setIsMapOpen(true)}
+            className="w-full p-3.5 rounded-xl border-2 border-dashed border-blue-300 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 text-gray-700 dark:text-gray-300 flex items-center gap-3 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all group"
+          >
+            <div className="p-2 bg-blue-100 dark:bg-blue-800/50 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-700/50 transition-colors">
+              <Map size={20} className="text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="flex-1 text-left">
+              {locationText ? (
+                <>
+                  <p className="font-medium text-gray-900 dark:text-white text-sm">{locationText}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <span className="text-green-500">✓</span> Joylashuv tanlangan
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium text-blue-600 dark:text-blue-400 text-sm">Xaritadan joyni tanlang</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Ish bajarilishi kerak bo'lgan joyni belgilang</p>
+                </>
+              )}
+            </div>
+            <Edit3 size={16} className="text-gray-400 group-hover:text-blue-500 transition-colors" />
+          </button>
         </div>
 
         {orderDetails && (
@@ -175,6 +208,14 @@ export const CreateOrder = () => {
           E'lon qilish <ChevronRight className="ml-2" />
         </button>
       </form>
+
+      {/* Map Location Picker Modal */}
+      <MapLocationPicker
+        isOpen={isMapOpen}
+        onClose={() => setIsMapOpen(false)}
+        onLocationSelect={handleLocationSelect}
+        initialLocation={selectedLocation ? { lat: selectedLocation.lat, lng: selectedLocation.lng } : undefined}
+      />
     </div>
   );
 };

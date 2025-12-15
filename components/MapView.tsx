@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { getSavedLocation } from '../services/locationService';
 
 // Fix for default marker icons in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -74,15 +75,26 @@ export const MapView: React.FC<MapViewProps> = ({
     const [userLocation, setUserLocation] = React.useState<[number, number] | null>(null);
 
     useEffect(() => {
-        if (showUserLocation && navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    setUserLocation([pos.coords.latitude, pos.coords.longitude]);
-                },
-                (err) => {
-                    console.log('Could not get user location:', err);
-                }
-            );
+        if (showUserLocation) {
+            // Avval saqlangan joylashuvni tekshirish
+            const savedLocation = getSavedLocation();
+            if (savedLocation) {
+                setUserLocation([savedLocation.lat, savedLocation.lng]);
+            } else if (navigator.geolocation) {
+                // Saqlangan joylashuv yo'q bo'lsa GPS dan olishga urinish
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+                    },
+                    () => {
+                        // GPS ham ishlamasa default Toshkent
+                        setUserLocation([41.311081, 69.240562]);
+                    }
+                );
+            } else {
+                // Geolocation qo'llab-quvvatlanmasa default Toshkent
+                setUserLocation([41.311081, 69.240562]);
+            }
         }
     }, [showUserLocation]);
 

@@ -8,18 +8,18 @@ const orderSchema = new mongoose.Schema({
     category: { type: String, required: true },
     price: { type: Number, required: true },
     location: { type: String },
+    lat: { type: Number },  // GPS koordinatasi - kenglik (latitude)
+    lng: { type: Number },  // GPS koordinatasi - uzunlik (longitude)
     status: {
         type: String,
         enum: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
         default: 'PENDING'
     },
-    coordinates: {
-        lat: { type: Number },
-        lng: { type: Number }
-    },
+    aiSuggested: { type: Boolean, default: false },
     review: {
         rating: { type: Number },
-        comment: { type: String }
+        comment: { type: String },
+        createdAt: { type: Date }
     }
 }, { timestamps: true });
 

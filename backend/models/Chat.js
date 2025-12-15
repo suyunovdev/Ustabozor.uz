@@ -3,7 +3,12 @@ const mongoose = require('mongoose');
 const chatSchema = new mongoose.Schema({
     participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     lastMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
-    unreadCount: { type: Number, default: 0 }
+    // Har bir foydalanuvchi uchun o'qilmagan xabarlar soni
+    unreadCounts: {
+        type: Map,
+        of: Number,
+        default: {}
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Chat', chatSchema);

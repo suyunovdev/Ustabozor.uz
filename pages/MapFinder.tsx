@@ -28,10 +28,9 @@ export const MapFinder = () => {
     // Generate markers based on view type
     const markers: MapMarker[] = viewType === 'workers'
         ? workers.map(worker => {
-            // Generate location from worker id
-            const hash = worker.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-            const lat = 41.28 + (hash % 15) / 100;
-            const lng = 69.18 + (hash % 20) / 100;
+            // Use worker's actual location if available, otherwise use default Tashkent coordinates
+            const lat = worker.location?.lat || 41.311081;
+            const lng = worker.location?.lng || 69.240562;
 
             return {
                 id: worker.id,
@@ -42,9 +41,9 @@ export const MapFinder = () => {
             };
         })
         : orders.map(order => {
-            const hash = order.location.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-            const lat = 41.28 + (hash % 10) / 100;
-            const lng = 69.20 + (hash % 15) / 100;
+            // Use order's actual GPS coordinates if available
+            const lat = order.lat || 41.311081;
+            const lng = order.lng || 69.240562;
 
             return {
                 id: order.id,
@@ -75,8 +74,8 @@ export const MapFinder = () => {
                     <button
                         onClick={() => setViewType('workers')}
                         className={`flex-1 py-2.5 px-4 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-all ${viewType === 'workers'
-                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                : 'text-gray-500 dark:text-gray-400'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                            : 'text-gray-500 dark:text-gray-400'
                             }`}
                     >
                         <Users size={16} />
@@ -85,8 +84,8 @@ export const MapFinder = () => {
                     <button
                         onClick={() => setViewType('jobs')}
                         className={`flex-1 py-2.5 px-4 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-all ${viewType === 'jobs'
-                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                : 'text-gray-500 dark:text-gray-400'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                            : 'text-gray-500 dark:text-gray-400'
                             }`}
                     >
                         <Briefcase size={16} />

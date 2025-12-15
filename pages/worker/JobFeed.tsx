@@ -10,6 +10,7 @@ import {
   ChevronDown, Zap, Map, List, X, Briefcase, Award
 } from '../../components/Icons';
 import { MapView, MapMarker } from '../../components/MapView';
+import { NavigationModal } from '../../components/NavigationModal';
 import { getSavedLocation, LocationData } from '../../services/locationService';
 
 // ====== YORDAMCHI FUNKSIYALAR ======
@@ -101,6 +102,13 @@ export const JobFeed = () => {
 
   // Location
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Navigation Modal State
+  const [navigationTarget, setNavigationTarget] = useState<{
+    name: string;
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   // Worker Stats
   const [workerStats, setWorkerStats] = useState({
@@ -533,10 +541,9 @@ export const JobFeed = () => {
           <MapView
             height="400px"
             markers={filteredOrders.map(order => {
-              // Generate fake coordinates from location string
-              const locationHash = order.location.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-              const lat = 41.28 + (locationHash % 10) / 100;
-              const lng = 69.20 + (locationHash % 15) / 100;
+              // Use actual GPS coordinates if available, otherwise default to Tashkent
+              const lat = order.lat || 41.311081;
+              const lng = order.lng || 69.240562;
 
               return {
                 id: order.id,
@@ -639,15 +646,29 @@ export const JobFeed = () => {
 
             {/* Location & Price */}
             <div className="grid grid-cols-2 gap-4 text-xs text-gray-600 dark:text-gray-300 mb-4">
-              <div className="flex items-center">
-                <MapPin size={14} className={`mr-1.5 ${order.lat && order.lng ? 'text-green-500' : 'text-gray-400'}`} />
-                {order.location}
+              <button
+                onClick={() => {
+                  if (order.lat && order.lng) {
+                    setNavigationTarget({
+                      name: order.location,
+                      lat: order.lat,
+                      lng: order.lng
+                    });
+                  } else {
+                    // Koordinatalar yo'q - xabar berish
+                    toast.warning('Bu buyurtma uchun aniq joylashuv mavjud emas');
+                  }
+                }}
+                className="flex items-center text-left hover:text-blue-600 dark:hover:text-blue-400 transition-colors group"
+              >
+                <MapPin size={14} className={`mr-1.5 ${order.lat && order.lng ? 'text-green-500' : 'text-gray-400'} group-hover:text-blue-500 group-hover:scale-110 transition-all`} />
+                <span className="underline-offset-2 group-hover:underline">{order.location}</span>
                 {order.distance !== undefined ? (
                   <span className="ml-1 text-blue-500 font-medium">({order.distance.toFixed(1)} km)</span>
                 ) : order.lat && order.lng ? (
                   <span className="ml-1 text-green-500 text-[10px]">✓ GPS</span>
                 ) : null}
-              </div>
+              </button>
               <div className="flex items-center text-green-600 dark:text-green-400 font-bold text-sm">
                 <DollarSign size={14} className="mr-1" />
                 {order.price.toLocaleString()} so'm
@@ -701,6 +722,17 @@ export const JobFeed = () => {
           </div>
         )}
       </div>
+
+      {/* Navigation Modal */}
+      {navigationTarget && (
+        <NavigationModal
+          isOpen={!!navigationTarget}
+          onClose={() => setNavigationTarget(null)}
+          destinationName={navigationTarget.name}
+          destinationLat={navigationTarget.lat}
+          destinationLng={navigationTarget.lng}
+        />
+      )}
     </div>
   );
 };

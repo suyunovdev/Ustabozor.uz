@@ -18,12 +18,8 @@ export const ChatService = {
         return await ApiService.sendMessage(chatId, senderId, content, attachments);
     },
 
-    markAsRead: async (chatId: string, userId: string): Promise<void> => {
-        // Backend implementation needed for this specific logic or we can just ignore for now
-        // as it's a simple backend. Or we can add an endpoint.
-        // For now, let's skip it to keep it simple or implement if critical.
-        // The backend doesn't have markAsRead endpoint yet.
-        console.log('markAsRead not implemented in simple backend yet');
+    markAsRead: async (chatId: string, userId: string): Promise<boolean> => {
+        return await ApiService.markChatAsRead(chatId, userId);
     },
 
     deleteMessage: async (messageId: string): Promise<boolean> => {

@@ -121,12 +121,17 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           ...regData,
           role
         });
-        setTimeout(() => {
-          onLogin(newUser);
-        }, 1000);
+        if (newUser) {
+          setTimeout(() => {
+            onLogin(newUser);
+          }, 1000);
+        } else {
+          setIsLoading(false);
+          setError("Ro'yxatdan o'tishda xatolik. Keyinroq urinib ko'ring.");
+        }
       } catch (e) {
         setIsLoading(false);
-        setError("Xatolik yuz berdi");
+        setError("Server bilan bog'lanishda xatolik. Keyinroq urinib ko'ring.");
       }
     }
   };
@@ -139,12 +144,17 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         role: UserRole.WORKER,
         skills: workerSkills
       });
-      setTimeout(() => {
-        onLogin(newUser);
-      }, 1000);
+      if (newUser) {
+        setTimeout(() => {
+          onLogin(newUser);
+        }, 1000);
+      } else {
+        setIsLoading(false);
+        setError("Ro'yxatdan o'tishda xatolik. Keyinroq urinib ko'ring.");
+      }
     } catch (e) {
       setIsLoading(false);
-      setError("Ro'yxatdan o'tishda xatolik");
+      setError("Server bilan bog'lanishda xatolik. Keyinroq urinib ko'ring.");
     }
   };
 
@@ -420,8 +430,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                       key={skill}
                       onClick={() => toggleSkill(skill)}
                       className={`p-3 rounded-lg text-sm font-medium border transition-all ${workerSkills.includes(skill)
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                     >
                       {skill}

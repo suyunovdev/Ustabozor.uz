@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Message, User } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
-import { ArrowLeft, MoreVertical, Phone, Video } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Phone, Video, ChevronDown } from 'lucide-react';
 
 interface ChatWindowProps {
   messages: Message[];
@@ -20,10 +20,53 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onBack
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const prevMessagesLength = useRef(messages.length);
+  const initialLoad = useRef(true);
 
+  // Scroll pozitsiyasini tekshirish
+  const handleScroll = useCallback(() => {
+    if (!messagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const nearBottom = distanceFromBottom < 100;
+    setIsNearBottom(nearBottom);
+    setShowScrollButton(distanceFromBottom > 300);
+  }, []);
+
+  // Pastga scroll qilish
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
+
+  // Xabarlar o'zgarganda scroll qilish
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    // Birinchi yuklashda pastga scroll
+    if (initialLoad.current && messages.length > 0) {
+      scrollToBottom('instant');
+      initialLoad.current = false;
+      prevMessagesLength.current = messages.length;
+      return;
+    }
+
+    // Yangi xabar kelganda
+    if (messages.length > prevMessagesLength.current) {
+      const lastMessage = messages[messages.length - 1];
+      const isOwnMessage = lastMessage?.senderId === currentUserId;
+
+      // O'z xabarimiz bo'lsa yoki pastda bo'lsak - scroll
+      if (isOwnMessage || isNearBottom) {
+        scrollToBottom('smooth');
+      } else {
+        // Yangi xabar keldi lekin foydalanuvchi tepada - scroll button ko'rsatish
+        setShowScrollButton(true);
+      }
+    }
+
+    prevMessagesLength.current = messages.length;
+  }, [messages, currentUserId, isNearBottom, scrollToBottom]);
 
   if (!otherUser) {
     return (
@@ -113,7 +156,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-950">
+      {/* Messages container with scroll handling */}
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 min-h-0 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-950 relative"
+      >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-center">
             <p className="text-sm">Hozircha xabarlar yo'q. Birinchi bo'lib xabar yuboring!</p>
@@ -150,6 +198,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           })
         )}
         <div ref={messagesEndRef} />
+
+        {/* Scroll to bottom button - Telegram style */}
+        {showScrollButton && (
+          <div className="sticky bottom-4 flex justify-center pointer-events-none">
+            <button
+              onClick={() => scrollToBottom('smooth')}
+              className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all transform hover:scale-105"
+              title="Pastga tushish"
+            >
+              <ChevronDown size={18} className="text-blue-500" />
+              <span className="text-sm font-medium">Yangi xabarlar</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <ChatInput onSendMessage={onSendMessage} />

@@ -28,12 +28,15 @@ export const ChatPage: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        if (selectedChatId) {
+        if (selectedChatId && currentUser) {
+            // Load messages first
             loadMessages(selectedChatId);
-            // Mark messages as read
-            if (currentUser) {
-                ChatService.markAsRead(selectedChatId, currentUser.id);
-            }
+
+            // Mark chat as read immediately
+            ChatService.markAsRead(selectedChatId, currentUser.id).then(() => {
+                // Refresh chat list to update unread badges
+                loadData();
+            });
 
             const interval = setInterval(() => {
                 loadMessages(selectedChatId);

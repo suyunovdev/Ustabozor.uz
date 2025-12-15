@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import {
   LogOut, Settings, Bell, ShieldCheck, CreditCard, ChevronRight,
@@ -8,8 +8,12 @@ import {
 } from 'lucide-react';
 import { EditProfileModal } from '../components/EditProfileModal';
 import { NotificationsPanel } from '../components/NotificationsPanel';
+import { LocationModal } from '../components/LocationModal';
+import { WalletModal } from '../components/WalletModal';
+import { JobsStatsModal } from '../components/JobsStatsModal';
 import { ApiService } from '../services/api';
 import { toast } from 'react-toastify';
+import { getSavedLocation, LocationData } from '../services/locationService';
 
 interface ProfileProps {
   user: User;
@@ -24,6 +28,14 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showJobsStatsModal, setShowJobsStatsModal] = useState(false);
+  const [userLocation, setUserLocation] = useState<LocationData | null>(() => getSavedLocation());
+
+  const handleLocationChange = (location: LocationData) => {
+    setUserLocation(location);
+  };
 
   const handleUpdateProfile = async (updatedData: Partial<User> | FormData) => {
     if (!user.id) return;
@@ -48,21 +60,53 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
     { id: 4, label: "Tezkor", icon: Zap, color: "text-purple-500 bg-purple-100 dark:bg-purple-900/30" },
   ];
 
-  const StatCard = ({ label, value, icon: Icon, color, delay }: any) => (
-    <div
-      className="relative overflow-hidden bg-white dark:bg-gray-800 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 group"
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-10 ${color.replace('text-', 'bg-')}`}></div>
-      <div className="relative z-10 flex flex-col items-center justify-center text-center">
-        <div className={`p-3 rounded-2xl ${color.replace('text-', 'bg-').replace('600', '100').replace('500', '100')} dark:bg-opacity-20 mb-3 group-hover:scale-110 transition-transform duration-300`}>
-          <Icon size={24} className={color} />
+  const StatCard = ({ label, value, icon: Icon, color, delay, subtext, trend, onClick }: any) => {
+    const bgColor = color === 'text-green-600' ? 'bg-emerald-500' :
+      color === 'text-yellow-500' ? 'bg-amber-500' : 'bg-blue-500';
+    const lightBg = color === 'text-green-600' ? 'bg-emerald-50 dark:bg-emerald-900/20' :
+      color === 'text-yellow-500' ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-blue-50 dark:bg-blue-900/20';
+
+    return (
+      <div
+        onClick={onClick}
+        className={`bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm hover:shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:-translate-y-1 cursor-pointer group`}
+        style={{ animationDelay: `${delay}ms` }}
+      >
+        <div className="flex items-center gap-4">
+          {/* Icon */}
+          <div className={`${lightBg} p-3 rounded-xl group-hover:scale-110 transition-transform duration-300`}>
+            <Icon size={24} className={color} />
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-gray-900 dark:text-white">
+                {label === 'Hamyon' && <span className="text-base text-gray-500 mr-1">UZS</span>}
+                {value}
+              </span>
+              {label === 'Reyting' && <span className="text-lg">⭐</span>}
+              {trend && (
+                <span className={`flex items-center gap-0.5 text-xs font-bold ${trend > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <TrendingUp size={12} className={trend > 0 ? '' : 'rotate-180'} />
+                  {Math.abs(trend)}%
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{label}</p>
+            {subtext && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{subtext}</p>
+            )}
+          </div>
+
+          {/* Arrow */}
+          {onClick && (
+            <ChevronRight size={20} className="text-gray-300 dark:text-gray-600 group-hover:text-gray-400 group-hover:translate-x-1 transition-all" />
+          )}
         </div>
-        <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{value}</span>
-        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">{label}</span>
       </div>
-    </div>
-  );
+    );
+  };
 
   const MenuItem = ({ icon: Icon, label, onClick, subLabel, isDestructive = false, delay }: any) => (
     <button
@@ -144,9 +188,14 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{user.name} {user.surname}</h1>
                 <CheckCircle2 size={20} className="text-blue-500 fill-blue-50 dark:fill-blue-900/30" />
               </div>
-              <p className="text-gray-500 dark:text-gray-400 font-medium text-sm mt-1 flex items-center justify-center gap-1">
-                <MapPin size={14} /> Toshkent, O'zbekiston
-              </p>
+              <button
+                onClick={() => setShowLocationModal(true)}
+                className="text-gray-500 dark:text-gray-400 font-medium text-sm mt-1 flex items-center justify-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer group"
+              >
+                <MapPin size={14} className="group-hover:scale-110 transition-transform" />
+                {userLocation?.city || 'Toshkent'}, {userLocation?.district || userLocation?.country || "O'zbekiston"}
+                <span className="text-xs text-blue-500 ml-1">(o'zgartirish)</span>
+              </button>
 
               {/* Profile Completion Bar */}
               <div className="mt-4 w-full max-w-[200px] mx-auto">
@@ -175,8 +224,8 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
                 </span>
                 {user.role === UserRole.WORKER && (
                   <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${(user as any).isOnline
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                     }`}>
                     <span className={`w-2 h-2 rounded-full ${(user as any).isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
                     {(user as any).isOnline ? 'Online' : 'Offline'}
@@ -191,31 +240,34 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="px-6 mb-8 mt-24">
-        <div className="grid grid-cols-3 gap-4">
-          <StatCard
-            label="Hamyon"
-            value={`${(user.balance || 0).toLocaleString()}`}
-            icon={CreditCard}
-            color="text-green-600"
-            delay={100}
-          />
-          <StatCard
-            label="Reyting"
-            value={user.rating || '5.0'}
-            icon={Star}
-            color="text-yellow-500"
-            delay={200}
-          />
-          <StatCard
-            label="Ishlar"
-            value={user.role === UserRole.WORKER ? '124' : '15'}
-            icon={Briefcase}
-            color="text-blue-600"
-            delay={300}
-          />
-        </div>
+      {/* Stats Cards */}
+      <div className="px-6 mb-6 mt-24 space-y-3">
+        <StatCard
+          label="Hamyon"
+          value={`${(user.balance || 0).toLocaleString()}`}
+          icon={CreditCard}
+          color="text-green-600"
+          delay={100}
+          subtext="Kartalar va operatsiyalar"
+          onClick={() => setShowWalletModal(true)}
+        />
+        <StatCard
+          label="Reyting"
+          value={user.rating || '5.0'}
+          icon={Star}
+          color="text-yellow-500"
+          delay={200}
+          subtext={`${user.ratingCount || 0} ta baho`}
+        />
+        <StatCard
+          label="Ishlar"
+          value={user.role === UserRole.WORKER ? '124' : '15'}
+          icon={Briefcase}
+          color="text-blue-600"
+          delay={300}
+          subtext={user.role === UserRole.WORKER ? 'Bajarilgan ishlar' : 'Buyurtmalar soni'}
+          onClick={() => setShowJobsStatsModal(true)}
+        />
       </div>
 
       {/* Platform Stats Banner */}
@@ -259,6 +311,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
         <div>
           <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 px-2">Akkaunt</h3>
           <MenuItem icon={UserIcon} label="Shaxsiy ma'lumotlar" subLabel="Tahrirlash" onClick={() => setShowEditProfile(true)} delay={500} />
+          <MenuItem icon={MapPin} label="Joylashuv" subLabel={userLocation?.city || "O'zgartirish"} onClick={() => setShowLocationModal(true)} delay={550} />
           <MenuItem icon={Bell} label="Bildirishnomalar" subLabel="Ko'rish" onClick={() => setShowNotifications(true)} delay={600} />
           <MenuItem icon={ShieldCheck} label="Xavfsizlik va Kirish" onClick={() => { }} delay={700} />
         </div>
@@ -351,6 +404,24 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
         userId={user.id}
+      />
+      {/* Location Modal */}
+      <LocationModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        onLocationChange={handleLocationChange}
+      />
+      {/* Wallet Modal */}
+      <WalletModal
+        isOpen={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
+        balance={user.balance || 0}
+      />
+      {/* Jobs Stats Modal */}
+      <JobsStatsModal
+        isOpen={showJobsStatsModal}
+        onClose={() => setShowJobsStatsModal(false)}
+        user={user}
       />
     </div>
   );

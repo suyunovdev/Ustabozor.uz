@@ -77,6 +77,12 @@ const App = () => {
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   const handleLogin = async (loggedInUser: User) => {
+    // Null tekshiruvi
+    if (!loggedInUser) {
+      console.error('handleLogin called with null user');
+      return;
+    }
+
     // Check if another user is already logged in
     if (user && user.id !== loggedInUser.id) {
       const confirmSwitch = window.confirm(
