@@ -1,6 +1,7 @@
 import { User, Order, Chat, Message, WorkerProfile, Notification } from '../types';
 
-const API_URL = 'http://localhost:5000/api';
+// Production uchun Render URL, development uchun localhost
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Transform functions to convert MongoDB format to frontend format
 const transformUser = (user: any): User => {
@@ -47,6 +48,9 @@ const transformOrder = (order: any): Order => {
         lat: order.lat,  // GPS koordinatasi - kenglik
         lng: order.lng,  // GPS koordinatasi - uzunlik
         createdAt: order.createdAt,
+        acceptedAt: order.acceptedAt,
+        startedAt: order.startedAt,
+        completedAt: order.completedAt,
         aiSuggested: order.aiSuggested,
         review: order.review
     };
@@ -65,11 +69,25 @@ const transformMessage = (msg: any): Message => {
     };
 };
 
-const transformChat = (chat: any): Chat => {
+const transformChat = (chat: any): Chat & { participants: any[] } => {
     if (!chat) return chat;
     return {
         id: chat._id || chat.id,
-        participants: chat.participants?.map((p: any) => p._id || p) || [],
+        // Keep full participant objects if populated, otherwise just IDs
+        participants: chat.participants?.map((p: any) => {
+            if (typeof p === 'object' && (p._id || p.id)) {
+                return {
+                    _id: p._id || p.id,
+                    id: p._id || p.id,
+                    name: p.name,
+                    surname: p.surname,
+                    avatar: p.avatar,
+                    role: p.role,
+                    isOnline: p.isOnline
+                };
+            }
+            return p;
+        }) || [],
         lastMessage: chat.lastMessage ? transformMessage(chat.lastMessage) : undefined,
         unreadCount: chat.unreadCount || 0,
         createdAt: chat.createdAt,
@@ -233,6 +251,18 @@ export const ApiService = {
         return transformOrder(resData);
     },
 
+    deleteOrder: async (id: string): Promise<boolean> => {
+        try {
+            const res = await fetch(`${API_URL}/orders/${id}`, {
+                method: 'DELETE'
+            });
+            return res.ok;
+        } catch (error) {
+            console.error('Error deleting order:', error);
+            return false;
+        }
+    },
+
     // --- CHATS ---
     getUserChats: async (userId: string): Promise<Chat[]> => {
         const res = await fetch(`${API_URL}/chats?userId=${userId}`);
@@ -308,5 +338,18 @@ export const ApiService = {
             method: 'DELETE'
         });
         return res.ok;
+    },
+
+    // --- USER DELETE ---
+    deleteUser: async (id: string): Promise<boolean> => {
+        try {
+            const res = await fetch(`${API_URL}/users/${id}`, {
+                method: 'DELETE'
+            });
+            return res.ok;
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            return false;
+        }
     }
 };

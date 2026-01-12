@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import {
-  LogOut, Settings, Bell, ShieldCheck, CreditCard, ChevronRight,
-  User as UserIcon, Star, Briefcase, MapPin, Moon, Sun, Globe,
-  CheckCircle2, Camera, Award, TrendingUp, Calendar, Zap, Percent,
-  Instagram, Send, Wifi, WifiOff
+  LogOut, Bell, CreditCard, ChevronRight, ShieldCheck,
+  User as UserIcon, Star, Briefcase, MapPin, Moon, Sun,
+  CheckCircle2, Camera, Award, TrendingUp, Calendar, Zap,
+  Instagram, Send, Globe, Wifi, WifiOff
 } from 'lucide-react';
 import { EditProfileModal } from '../components/EditProfileModal';
 import { NotificationsPanel } from '../components/NotificationsPanel';
@@ -32,6 +32,39 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showJobsStatsModal, setShowJobsStatsModal] = useState(false);
   const [userLocation, setUserLocation] = useState<LocationData | null>(() => getSavedLocation());
+  const [platformStats, setPlatformStats] = useState({
+    totalOrders: 0,
+    todayOrders: 0,
+    totalWorkers: 0
+  });
+
+  // Platform statistikasini yuklash
+  useEffect(() => {
+    const loadPlatformStats = async () => {
+      try {
+        const [orders, workers] = await Promise.all([
+          ApiService.getOrders(),
+          ApiService.getWorkers()
+        ]);
+
+        // Bugungi buyurtmalarni hisoblash
+        const today = new Date().toDateString();
+        const todayOrders = orders.filter(o =>
+          new Date(o.createdAt).toDateString() === today
+        ).length;
+
+        setPlatformStats({
+          totalOrders: orders.length,
+          todayOrders,
+          totalWorkers: workers.length
+        });
+      } catch (error) {
+        console.error('Failed to load platform stats:', error);
+      }
+    };
+
+    loadPlatformStats();
+  }, []);
 
   const handleLocationChange = (location: LocationData) => {
     setUserLocation(location);
@@ -274,13 +307,34 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
       <div className="px-6 mb-8 animate-fadeInUp" style={{ animationDelay: '350ms' }}>
         <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-4 text-white shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-white/20 rounded-full blur-xl"></div>
-          <div className="flex items-center space-x-3 relative z-10">
-            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-              <TrendingUp size={24} className="text-white" />
+          <div className="absolute bottom-0 left-0 -mb-4 -ml-4 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
+
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <TrendingUp size={24} className="text-white" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-white/80 uppercase tracking-wider">Platforma Statistikasi</p>
+                <p className="text-sm font-bold">
+                  {platformStats.todayOrders > 0
+                    ? `Bugun ${platformStats.todayOrders} ta yangi ish! 🚀`
+                    : `Jami ${platformStats.totalOrders} ta ish platformada 🎯`
+                  }
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-medium text-white/80 uppercase tracking-wider">Platforma Statistikasi</p>
-              <p className="text-sm font-bold">Bugun 120+ yangi ish joylandi! 🚀</p>
+
+            <div className="flex gap-3">
+              <div className="text-center px-2">
+                <p className="text-xl font-black">{platformStats.totalOrders}</p>
+                <p className="text-[10px] text-white/70 uppercase">Ishlar</p>
+              </div>
+              <div className="w-px bg-white/20"></div>
+              <div className="text-center px-2">
+                <p className="text-xl font-black">{platformStats.totalWorkers}</p>
+                <p className="text-[10px] text-white/70 uppercase">Ustalar</p>
+              </div>
             </div>
           </div>
         </div>
@@ -307,22 +361,23 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
       </div>
 
       {/* Menu Settings */}
-      <div className="px-6 space-y-8">
+      <div className="px-6 space-y-6">
+        {/* Profile Section */}
         <div>
-          <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 px-2">Akkaunt</h3>
+          <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 px-2">Profil</h3>
           <MenuItem icon={UserIcon} label="Shaxsiy ma'lumotlar" subLabel="Tahrirlash" onClick={() => setShowEditProfile(true)} delay={500} />
           <MenuItem icon={MapPin} label="Joylashuv" subLabel={userLocation?.city || "O'zgartirish"} onClick={() => setShowLocationModal(true)} delay={550} />
           <MenuItem icon={Bell} label="Bildirishnomalar" subLabel="Ko'rish" onClick={() => setShowNotifications(true)} delay={600} />
-          <MenuItem icon={ShieldCheck} label="Xavfsizlik va Kirish" onClick={() => { }} delay={700} />
         </div>
 
+        {/* Worker Status Section */}
         {user.role === UserRole.WORKER && (
           <div>
-            <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 px-2">Status</h3>
+            <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 px-2">Ish holati</h3>
             <MenuItem
               icon={(user as any).isOnline ? Wifi : WifiOff}
-              label={(user as any).isOnline ? 'Online' : 'Offline'}
-              subLabel={(user as any).isOnline ? 'Faol' : "Faol emas"}
+              label={(user as any).isOnline ? 'Ish qabul qilmoqda' : 'Ish qabul qilmayapti'}
+              subLabel={(user as any).isOnline ? 'Online - ishlar sizga ko\'rsatiladi' : "Offline - ishlar sizga ko'rsatilmaydi"}
               onClick={async () => {
                 const updated = await ApiService.toggleOnlineStatus(user.id);
                 if (updated) {
@@ -330,26 +385,26 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
                   toast.success((updated as any).isOnline ? "Online rejimga o'tdingiz!" : "Offline rejimga o'tdingiz!");
                 }
               }}
-              delay={750}
+              delay={650}
             />
           </div>
         )}
 
+        {/* App Settings Section */}
         <div>
           <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 px-2">Ilova</h3>
-          <MenuItem icon={Globe} label="Til sozlamalari" subLabel="O'zbekcha" onClick={() => { }} delay={800} />
           <MenuItem
             icon={isDarkMode ? Moon : Sun}
             label={isDarkMode ? 'Tungi rejim' : 'Kunduzgi rejim'}
             subLabel="toggle"
             onClick={toggleTheme}
-            delay={900}
+            delay={700}
           />
-          <MenuItem icon={Settings} label="Umumiy sozlamalar" onClick={() => { }} delay={1000} />
         </div>
 
-        <div className="pt-4">
-          <MenuItem icon={LogOut} label="Chiqish" isDestructive={true} onClick={() => setShowLogoutConfirm(true)} delay={1100} />
+        {/* Logout */}
+        <div className="pt-2">
+          <MenuItem icon={LogOut} label="Chiqish" isDestructive={true} onClick={() => setShowLogoutConfirm(true)} delay={800} />
         </div>
       </div>
 
@@ -360,7 +415,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
           <a href="#" className="text-gray-400 hover:text-pink-500 transition-colors"><Instagram size={20} /></a>
           <a href="#" className="text-gray-400 hover:text-blue-600 transition-colors"><Globe size={20} /></a>
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-600 font-medium">Mardikor Platformasi</p>
+        <p className="text-xs text-gray-400 dark:text-gray-600 font-medium">IshTop Platformasi</p>
         <p className="text-[10px] text-gray-300 dark:text-gray-700 mt-1">v1.2.0 • Build 2024</p>
       </div>
 
@@ -416,6 +471,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
         isOpen={showWalletModal}
         onClose={() => setShowWalletModal(false)}
         balance={user.balance || 0}
+        onBalanceUpdate={(newBalance) => {
+          onUserUpdate({ ...user, balance: newBalance });
+        }}
       />
       {/* Jobs Stats Modal */}
       <JobsStatsModal

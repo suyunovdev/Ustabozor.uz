@@ -12,6 +12,7 @@ import {
 import { MapView, MapMarker } from '../../components/MapView';
 import { NavigationModal } from '../../components/NavigationModal';
 import { getSavedLocation, LocationData } from '../../services/locationService';
+import { openChatWith } from '../../services/chatUtils';
 
 // ====== YORDAMCHI FUNKSIYALAR ======
 
@@ -346,8 +347,13 @@ export const JobFeed = () => {
     }
   };
 
-  const handleQuickChat = (customerId: string) => {
-    navigate(`/chat?userId=${customerId}`);
+  const handleQuickChat = async (customerId: string) => {
+    if (!CURRENT_WORKER_ID) {
+      toast.warning("Chat uchun tizimga kiring!");
+      navigate('/auth');
+      return;
+    }
+    await openChatWith(CURRENT_WORKER_ID, customerId, navigate);
   };
 
   // ====== RENDER ======

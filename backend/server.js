@@ -12,8 +12,14 @@ const PORT = process.env.PORT || 5000;
 // Connect to MongoDB
 connectDB();
 
-// Middleware
-app.use(cors());
+// Middleware - Production uchun CORS sozlamalari
+const corsOptions = {
+    origin: process.env.FRONTEND_URL || '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+};
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 
 // Ensure uploads directory exists
@@ -39,6 +45,10 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/chats', chatsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/notifications', notificationsRoutes);
+
+// Telegram Bot route
+const telegramRoutes = require('./routes/telegram');
+app.use('/api/telegram', telegramRoutes);
 
 // Start server
 app.listen(PORT, () => {

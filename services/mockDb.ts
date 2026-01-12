@@ -71,5 +71,37 @@ export const MockService = {
     return await ApiService.updateOrder(orderId, {
       review: { rating, comment, createdAt: new Date().toISOString() }
     } as any);
+  },
+
+  // Admin Stats Function
+  getStats: async () => {
+    try {
+      const [users, orders] = await Promise.all([
+        ApiService.getAllUsers(),
+        ApiService.getOrders()
+      ]);
+
+      const activeOrders = orders.filter(o =>
+        o.status === 'PENDING' || o.status === 'ACCEPTED' || o.status === 'IN_PROGRESS'
+      ).length;
+
+      const completedOrders = orders.filter(o => o.status === 'COMPLETED');
+      const revenue = completedOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+
+      return {
+        totalUsers: users.length,
+        activeOrders,
+        revenue,
+        totalOrders: orders.length
+      };
+    } catch (error) {
+      console.error('Error getting stats:', error);
+      return {
+        totalUsers: 0,
+        activeOrders: 0,
+        revenue: 0,
+        totalOrders: 0
+      };
+    }
   }
 };

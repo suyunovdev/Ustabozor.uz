@@ -12,11 +12,15 @@ import { MyOrders } from './pages/customer/MyOrders';
 import { JobFeed } from './pages/worker/JobFeed';
 import { MyJobs } from './pages/worker/MyJobs';
 import { AdminDashboard } from './pages/admin/Dashboard';
+import { AdminUsers } from './pages/admin/AdminUsers';
+import { AdminOrders } from './pages/admin/AdminOrders';
+import { AdminFinance } from './pages/admin/AdminFinance';
 import { ChatPage } from './pages/ChatPage';
 import { MapFinder } from './pages/MapFinder';
 import { User, UserRole } from './types';
 import { ApiService } from './services/api';
 import { requestUserLocation, getSavedLocation, isLocationStale, LocationData } from './services/locationService';
+import { initTelegramWebApp, isTelegramWebApp, getTelegramUser } from './services/telegram';
 
 const App = () => {
   const [user, setUser] = useState<User | null>(() => {
@@ -40,6 +44,23 @@ const App = () => {
     const saved = localStorage.getItem('theme');
     return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
+
+  // Telegram Web App initialization
+  useEffect(() => {
+    if (isTelegramWebApp()) {
+      const initialized = initTelegramWebApp();
+      if (initialized) {
+        toast.success('📱 Telegram orqali ulandi!', { autoClose: 2000 });
+
+        // Get Telegram user info
+        const tgUser = getTelegramUser();
+        if (tgUser) {
+          console.log('Telegram User:', tgUser);
+          // You can auto-login or show user info here
+        }
+      }
+    }
+  }, []);
 
   // Dark mode effect
   useEffect(() => {
@@ -154,9 +175,9 @@ const App = () => {
                   {role === UserRole.ADMIN && (
                     <>
                       <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                      <Route path="/admin/users" element={<div className="p-8">Foydalanuvchilar boshqaruvi</div>} />
-                      <Route path="/admin/orders" element={<div className="p-8">Buyurtmalar tarixi</div>} />
-                      <Route path="/admin/finance" element={<div className="p-8">Moliya bo'limi</div>} />
+                      <Route path="/admin/users" element={<AdminUsers />} />
+                      <Route path="/admin/orders" element={<AdminOrders />} />
+                      <Route path="/admin/finance" element={<AdminFinance />} />
                       <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
                     </>
                   )}

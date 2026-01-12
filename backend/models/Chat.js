@@ -11,4 +11,9 @@ const chatSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+// Index for faster queries
+chatSchema.index({ participants: 1 });
+chatSchema.index({ updatedAt: -1 });
+chatSchema.index({ participants: 1, updatedAt: -1 });
+
 module.exports = mongoose.model('Chat', chatSchema);

@@ -2,7 +2,7 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Mardikor Platform
+# IshTop Platform
 
 Ish beruvchilar va ishchilarni bog'lovchi platforma.
 
@@ -27,15 +27,15 @@ Ish beruvchilar va ishchilarni bog'lovchi platforma.
 ## 👥 Demo Users
 
 **Mijozlar (Customers):**
-- Email: `client@mardikor.uz` | Parol: `password123`
-- Email: `client2@mardikor.uz` | Parol: `password123`
+- Email: `client@ishtop.uz` | Parol: `password123`
+- Email: `client2@ishtop.uz` | Parol: `password123`
 
 **Ishchilar (Workers):**
-- Email: `worker1@mardikor.uz` | Parol: `password123`
-- Email: `worker2@mardikor.uz` | Parol: `password123`
+- Email: `worker1@ishtop.uz` | Parol: `password123`
+- Email: `worker2@ishtop.uz` | Parol: `password123`
 
 **Admin:**
-- Email: `admin@mardikor.uz` | Parol: `admin`
+- Email: `admin@ishtop.uz` | Parol: `admin`
 
 ## 📖 Session Management
 

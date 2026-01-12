@@ -55,6 +55,9 @@ export interface Order {
   lat?: number;  // GPS koordinatalari
   lng?: number;
   createdAt: string;
+  acceptedAt?: string;    // Qabul qilingan vaqt
+  startedAt?: string;     // Ish boshlangan vaqt
+  completedAt?: string;   // Tugatilgan vaqt
   aiSuggested?: boolean;
   review?: Review; // Buyurtma izohi
 }

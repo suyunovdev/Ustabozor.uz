@@ -74,7 +74,7 @@ const AdminSidebar = ({ logout, toggleTheme, isDarkMode, user }: { logout: () =>
   return (
     <div className="hidden md:flex flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 min-h-screen transition-colors duration-300">
       <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex flex-col">
-        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-4">Mardikor<span className="text-gray-400 text-xs ml-1 font-normal uppercase tracking-widest">Admin</span></h1>
+        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-4">IshTop<span className="text-gray-400 text-xs ml-1 font-normal uppercase tracking-widest">Admin</span></h1>
         <div className="flex items-center space-x-3 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
           <img src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} className="w-8 h-8 rounded-full" alt="admin" />
           <div className="text-xs">
@@ -89,8 +89,8 @@ const AdminSidebar = ({ logout, toggleTheme, isDarkMode, user }: { logout: () =>
             key={link.path}
             to={link.path}
             className={`flex items-center px-6 py-3 space-x-3 border-l-4 transition-all ${isActive(link.path)
-                ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'
+              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
           >
             {link.icon}
@@ -132,8 +132,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, logout, toggleTh
   // Mobile App Layout
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex justify-center transition-colors duration-300">
-      <div className="w-full max-w-lg bg-white dark:bg-gray-900 min-h-screen shadow-2xl dark:shadow-black/50 relative pb-20 transition-colors duration-300 overflow-hidden">
-        {/* Theme toggle removed - now only available in Profile page */}
+      <div className="w-full max-w-lg bg-white dark:bg-gray-900 min-h-screen shadow-2xl dark:shadow-black/50 relative pb-16 transition-colors duration-300 overflow-hidden">
         {children}
         <MobileNav role={user.role} />
       </div>

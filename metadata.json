@@ -1,5 +1,5 @@
 {
-  "name": "Mardikor Platformasi",
+  "name": "IshTop Platformasi",
   "description": "Mijozlarni malakali ishchilar bilan bog'laydigan keng qamrovli platforma. Mobil ilova va admin boshqaruv paneli.",
   "requestFramePermissions": [
     "geolocation"

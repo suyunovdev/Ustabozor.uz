@@ -22,6 +22,10 @@ export const CreateOrder = () => {
   const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
   const [isMapOpen, setIsMapOpen] = useState(false);
 
+  // Get selected worker from URL params
+  const selectedWorkerId = searchParams.get('workerId');
+  const selectedWorkerName = searchParams.get('workerName');
+
   // Joylashuvni olish
   useEffect(() => {
     const savedLocation = getSavedLocation();
@@ -74,6 +78,7 @@ export const CreateOrder = () => {
 
     await MockService.createOrder({
       customerId: currentUser.id,
+      workerId: selectedWorkerId || undefined, // If worker is selected, assign directly
       title: title,
       description: orderDetails?.description || input,
       category: category,
@@ -83,12 +88,30 @@ export const CreateOrder = () => {
       lng: locationToUse?.lng,
       aiSuggested: !!orderDetails
     });
-    navigate('/customer/home');
+
+    // Navigate to orders page to see the created order
+    navigate('/customer/orders');
   };
 
   return (
     <div className="p-6 bg-gray-50 dark:bg-gray-950 min-h-screen">
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Buyurtma Berish</h1>
+
+      {/* Selected Worker Card */}
+      {selectedWorkerId && selectedWorkerName && (
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-4 rounded-2xl shadow-lg text-white mb-6 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-xl font-bold">
+            {selectedWorkerName.charAt(0)}
+          </div>
+          <div className="flex-1">
+            <p className="text-green-100 text-xs">Tanlangan ishchi</p>
+            <p className="font-bold text-lg">{selectedWorkerName}</p>
+          </div>
+          <div className="bg-white/20 px-3 py-1.5 rounded-full text-xs font-medium">
+            ✓ Yollash uchun
+          </div>
+        </div>
+      )}
 
       {/* AI Assistant Section */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-indigo-900 dark:to-purple-900 p-6 rounded-3xl shadow-lg shadow-blue-500/20 text-white mb-8 border border-white/10 relative overflow-hidden">

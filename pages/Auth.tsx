@@ -177,7 +177,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         <div className="w-24 h-24 bg-white dark:bg-gray-800 rounded-3xl flex items-center justify-center mx-auto mb-6 text-blue-600 shadow-2xl ring-4 ring-white/20 dark:ring-gray-700/30 backdrop-blur-sm animate-bounce-slow">
           <Zap size={48} strokeWidth={2.5} />
         </div>
-        <h1 className="text-5xl font-bold tracking-tight text-white mb-2">Mardikor</h1>
+        <h1 className="text-5xl font-bold tracking-tight text-white mb-2">IshTop</h1>
         <p className="text-blue-100 dark:text-gray-300 font-light text-lg">Ish toping. Yordam oling. Tez.</p>
       </div>
 
@@ -371,7 +371,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 <Briefcase size={28} />
               </div>
               <div className="text-left">
-                <h3 className="font-bold text-xl text-white">Ishchi (Mardikor)</h3>
+                <h3 className="font-bold text-xl text-white">Ishchi (Usta)</h3>
                 <p className="text-sm text-green-100">Buyurtmalar olish va daromad qilish</p>
               </div>
             </button>
@@ -454,7 +454,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
       </div>
 
-      <p className="absolute bottom-4 text-blue-200 dark:text-gray-600 text-xs">© 2024 Mardikor Inc.</p>
+      <p className="absolute bottom-4 text-blue-200 dark:text-gray-600 text-xs">© 2024 IshTop Inc.</p>
     </div>
   );
 };

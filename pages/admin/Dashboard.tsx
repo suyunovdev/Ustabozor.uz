@@ -1,14 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { MockService } from '../../services/mockDb';
-import { GeminiService } from '../../services/geminiService';
-import { Users, Briefcase, DollarSign, TrendingUp, Zap } from '../../components/Icons';
+import { PlusCircle, Users, FileText, ChevronDown, TrendingUp } from '../../components/Icons';
+import { Order, WorkerProfile } from '../../types';
+
+// Import admin components
+import {
+  StatsCards,
+  RevenueChart,
+  OrderStatusChart,
+  CategoryStats,
+  RegionStats,
+  RecentOrders,
+  TopWorkers
+} from '../../components/admin';
 
 export const AdminDashboard = () => {
   const [stats, setStats] = useState<any>(null);
-  const [aiAnalysis, setAiAnalysis] = useState('Bozor tahlili yuklanmoqda...');
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [topWorkers, setTopWorkers] = useState<WorkerProfile[]>([]);
+  const [topCustomers, setTopCustomers] = useState<any[]>([]);
+  const [ordersByStatus, setOrdersByStatus] = useState<any[]>([]);
+  const [categoryStats, setCategoryStats] = useState<any[]>([]);
+  const [regionStats, setRegionStats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'year'>('week');
+  const [showQuickActions, setShowQuickActions] = useState(false);
 
-  const data = [
+  const chartData = [
     { name: 'Dush', orders: 40, revenue: 2400 },
     { name: 'Sesh', orders: 30, revenue: 1398 },
     { name: 'Chor', orders: 20, revenue: 9800 },
@@ -18,86 +36,231 @@ export const AdminDashboard = () => {
     { name: 'Yak', orders: 34, revenue: 4300 },
   ];
 
+  const BAR_COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
+
   useEffect(() => {
-    MockService.getStats().then(setStats);
-    
-    // Simulate getting recent orders for AI analysis
-    MockService.getOrders().then(orders => {
-      GeminiService.analyzeMarketTrends(orders).then(setAiAnalysis);
+    loadDashboardData();
+  }, [dateFilter]);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [statsData, orders, workers, allUsers] = await Promise.all([
+        MockService.getStats(),
+        MockService.getOrders(),
+        MockService.getWorkers(),
+        MockService.getAllUsers()
+      ]);
+
+      const filteredOrders = filterByDate(orders);
+
+      setStats({
+        ...statsData,
+        filteredOrders: filteredOrders.length,
+        filteredRevenue: filteredOrders.filter(o => o.status === 'COMPLETED')
+          .reduce((sum, o) => sum + (Number(o.price) || 0), 0)
+      });
+
+      const sortedOrders = [...filteredOrders].sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setRecentOrders(sortedOrders.slice(0, 5));
+
+      const sortedWorkers = [...workers].sort((a, b) =>
+        (Number(b.rating) || 0) - (Number(a.rating) || 0)
+      );
+      setTopWorkers(sortedWorkers.slice(0, 5));
+
+      const customers = allUsers.filter(u => u.role === 'CUSTOMER');
+      const customerOrderCounts = customers.map(customer => {
+        const customerOrders = orders.filter(o => o.customerId === customer.id);
+        return {
+          ...customer,
+          orderCount: customerOrders.length,
+        };
+      }).sort((a, b) => b.orderCount - a.orderCount);
+      setTopCustomers(customerOrderCounts.slice(0, 5));
+
+      const statusCounts = {
+        PENDING: filteredOrders.filter(o => o.status === 'PENDING').length,
+        IN_PROGRESS: filteredOrders.filter(o => o.status === 'IN_PROGRESS' || o.status === 'ACCEPTED').length,
+        COMPLETED: filteredOrders.filter(o => o.status === 'COMPLETED').length,
+        CANCELLED: filteredOrders.filter(o => o.status === 'CANCELLED').length,
+      };
+      setOrdersByStatus([
+        { name: 'Kutilmoqda', value: statusCounts.PENDING, color: '#f59e0b' },
+        { name: 'Jarayonda', value: statusCounts.IN_PROGRESS, color: '#3b82f6' },
+        { name: 'Bajarilgan', value: statusCounts.COMPLETED, color: '#10b981' },
+        { name: 'Bekor', value: statusCounts.CANCELLED, color: '#ef4444' },
+      ].filter(s => s.value > 0));
+
+      const categories: Record<string, number> = {};
+      filteredOrders.forEach(order => {
+        const cat = order.category || 'Boshqa';
+        categories[cat] = (categories[cat] || 0) + 1;
+      });
+      const catStats = Object.entries(categories)
+        .map(([name, value], idx) => ({ name, value, fill: BAR_COLORS[idx % BAR_COLORS.length] }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+      setCategoryStats(catStats);
+
+      const regions: Record<string, number> = {};
+      filteredOrders.forEach(order => {
+        const location = order.location?.split(',')[0] || 'Noma\'lum';
+        regions[location] = (regions[location] || 0) + 1;
+      });
+      const regStats = Object.entries(regions)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+      setRegionStats(regStats);
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterByDate = (orders: Order[]) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    return orders.filter(order => {
+      const orderDate = new Date(order.createdAt);
+      switch (dateFilter) {
+        case 'today': return orderDate >= today;
+        case 'week': return orderDate >= new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        case 'month': return orderDate >= new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        case 'year': return orderDate >= new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+        default: return true;
+      }
     });
-  }, []);
+  };
+
+  const exportToCSV = () => {
+    if (recentOrders.length === 0) {
+      alert('Eksport qilish uchun ma\'lumot yo\'q');
+      return;
+    }
+    const headers = ['ID', 'Sarlavha', 'Kategoriya', 'Joylashuv', 'Narx', 'Holat', 'Sana'];
+    const csvRows = [headers.join(',')];
+    recentOrders.forEach(order => {
+      const row = [
+        order.id,
+        `"${order.title?.replace(/"/g, '""') || ''}"`,
+        `"${order.category || 'Boshqa'}"`,
+        `"${order.location?.replace(/"/g, '""') || ''}"`,
+        order.price || 0,
+        order.status,
+        new Date(order.createdAt).toLocaleDateString('uz-UZ')
+      ];
+      csvRows.push(row.join(','));
+    });
+    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `buyurtmalar_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Boshqaruv Paneli</h1>
-        <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-sm text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
-          So'nggi 7 kun
+    <div className="space-y-5">
+      {/* Header with Actions */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Boshqaruv Paneli</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Platformaning umumiy ko'rinishi</p>
         </div>
-      </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[
-          { label: 'Foydalanuvchilar', value: stats?.totalUsers || '...', icon: <Users size={24} />, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' },
-          { label: 'Faol Buyurtmalar', value: stats?.activeOrders || '...', icon: <Briefcase size={24} />, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-900/30' },
-          { label: 'Daromad (so\'m)', value: (stats?.revenue || 0).toLocaleString(), icon: <DollarSign size={24} />, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30' },
-          { label: 'O\'sish', value: '+12.5%', icon: <TrendingUp size={24} />, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/30' },
-        ].map((stat, idx) => (
-          <div key={idx} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center space-x-4 transition-transform hover:-translate-y-1">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${stat.bg} ${stat.color}`}>
-              {stat.icon}
-            </div>
-            <div>
-              <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{stat.label}</p>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</h3>
-            </div>
+        <div className="flex items-center gap-3">
+          {/* Date Filter */}
+          <div className="relative">
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value as any)}
+              className="appearance-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 pr-10 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:border-blue-500 transition-colors"
+            >
+              <option value="today">Bugun</option>
+              <option value="week">So'nggi 7 kun</option>
+              <option value="month">So'nggi 30 kun</option>
+              <option value="year">So'nggi yil</option>
+            </select>
+            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
-        ))}
+
+          {/* Quick Actions */}
+          <div className="relative">
+            <button
+              onClick={() => setShowQuickActions(!showQuickActions)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              <PlusCircle size={16} />
+              Tezkor amallar
+              <ChevronDown size={14} className={`transition-transform ${showQuickActions ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showQuickActions && (
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 py-2 z-50">
+                <button
+                  onClick={() => { window.location.href = '/create-order'; setShowQuickActions(false); }}
+                  className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 text-gray-700 dark:text-gray-300"
+                >
+                  <PlusCircle size={16} className="text-blue-500" />
+                  Yangi buyurtma
+                </button>
+                <button
+                  onClick={() => { window.location.href = '/admin/users'; setShowQuickActions(false); }}
+                  className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 text-gray-700 dark:text-gray-300"
+                >
+                  <Users size={16} className="text-green-500" />
+                  Yangi usta qo'shish
+                </button>
+                <button
+                  onClick={() => { exportToCSV(); setShowQuickActions(false); }}
+                  className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 text-gray-700 dark:text-gray-300"
+                >
+                  <FileText size={16} className="text-purple-500" />
+                  Excel hisobot
+                </button>
+                <hr className="my-2 border-gray-100 dark:border-gray-700" />
+                <button
+                  onClick={() => { loadDashboardData(); setShowQuickActions(false); }}
+                  className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 text-gray-700 dark:text-gray-300"
+                >
+                  <TrendingUp size={16} className="text-orange-500" />
+                  Ma'lumotlarni yangilash
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Chart */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-           <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white">Daromadlar Statistikasi</h3>
-           <div className="h-72 w-full">
-             <ResponsiveContainer width="100%" height="100%">
-               <AreaChart data={data}>
-                 <defs>
-                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                   </linearGradient>
-                 </defs>
-                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" className="dark:stroke-gray-700" />
-                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} />
-                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} />
-                 <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', backgroundColor: 'rgba(255, 255, 255, 0.9)' }} 
-                    itemStyle={{ color: '#1f2937' }}
-                 />
-                 <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-               </AreaChart>
-             </ResponsiveContainer>
-           </div>
-        </div>
+      {/* Stats Cards */}
+      <StatsCards stats={stats} />
 
-        {/* AI Insight Card */}
-        <div className="bg-gradient-to-br from-indigo-900 to-blue-950 text-white p-6 rounded-2xl shadow-xl relative overflow-hidden border border-indigo-800/50">
-           <div className="absolute top-0 right-0 p-32 bg-blue-500/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
-           <div className="flex items-center space-x-2 mb-4 relative z-10">
-              <Zap className="text-yellow-400 fill-current" />
-              <h3 className="font-bold text-lg">Gemini Bozor Tahlili</h3>
-           </div>
-           <p className="text-blue-100 dark:text-gray-300 text-sm leading-relaxed mb-6 relative z-10 opacity-90">
-             {aiAnalysis}
-           </p>
-           <div className="mt-auto relative z-10">
-             <button className="text-xs bg-white/10 hover:bg-white/20 px-4 py-2.5 rounded-xl transition-colors text-white font-medium border border-white/10 backdrop-blur-sm w-full text-center">
-               To'liq hisobotni yuklash
-             </button>
-           </div>
+      {/* Row 1: Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2">
+          <RevenueChart data={chartData} />
         </div>
+        <OrderStatusChart data={ordersByStatus} />
+      </div>
+
+      {/* Row 2: Category & Region Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <CategoryStats data={categoryStats} />
+        <RegionStats data={regionStats} />
+      </div>
+
+      {/* Row 3: Orders & Top Workers */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2">
+          <RecentOrders orders={recentOrders} onViewAll={() => window.location.href = '/admin/orders'} />
+        </div>
+        <TopWorkers workers={topWorkers} customers={topCustomers} />
       </div>
     </div>
   );

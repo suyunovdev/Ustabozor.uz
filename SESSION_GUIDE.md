@@ -1,8 +1,8 @@
-# Session Management Guide - Mardikor Platform
+# Session Management Guide - IshTop Platform
 
 ## 📋 Umumiy ma'lumot
 
-Mardikor platformasida **bir brauzer sessiyasida faqat bitta foydalanuvchi** login bo'lishi mumkin. Bu standart web application xavfsizlik amaliyotidir.
+IshTop platformasida **bir brauzer sessiyasida faqat bitta foydalanuvchi** login bo'lishi mumkin. Bu standart web application xavfsizlik amaliyotidir.
 
 ## 🔐 Session qoidalari
 
@@ -54,15 +54,15 @@ Chrome va Edge'da turli foydalanuvchi profillari yaratish mumkin:
 Platformada quyidagi test foydalanuvchilar mavjud:
 
 **Mijozlar (Customers):**
-- Email: `client@mardikor.uz` | Parol: `password123`
-- Email: `client2@mardikor.uz` | Parol: `password123`
+- Email: `client@ishtop.uz` | Parol: `password123`
+- Email: `client2@ishtop.uz` | Parol: `password123`
 
 **Ishchilar (Workers):**
-- Email: `worker1@mardikor.uz` | Parol: `password123`
-- Email: `worker2@mardikor.uz` | Parol: `password123`
+- Email: `worker1@ishtop.uz` | Parol: `password123`
+- Email: `worker2@ishtop.uz` | Parol: `password123`
 
 **Admin:**
-- Email: `admin@mardikor.uz` | Parol: `admin`
+- Email: `admin@ishtop.uz` | Parol: `admin`
 
 ### Test ssenariysi
 ```

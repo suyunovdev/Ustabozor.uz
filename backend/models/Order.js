@@ -16,6 +16,9 @@ const orderSchema = new mongoose.Schema({
         default: 'PENDING'
     },
     aiSuggested: { type: Boolean, default: false },
+    acceptedAt: { type: Date },     // Qabul qilingan vaqt
+    startedAt: { type: Date },      // Ish boshlangan vaqt
+    completedAt: { type: Date },    // Tugatilgan vaqt
     review: {
         rating: { type: Number },
         comment: { type: String },

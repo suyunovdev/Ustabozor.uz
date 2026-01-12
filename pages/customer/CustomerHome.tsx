@@ -5,6 +5,7 @@ import { MockService } from '../../services/mockDb';
 import { WorkerProfile } from '../../types';
 import { openChatWith } from '../../services/chatUtils';
 import { MessageCircle } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { getSavedLocation, LocationData } from '../../services/locationService';
 
 const CATEGORIES = [
@@ -31,10 +32,17 @@ export const CustomerHome = () => {
     setUserLocation(getSavedLocation());
   }, []);
 
-  const handleChatWithWorker = (workerId: string) => {
-    if (currentUser) {
-      openChatWith(currentUser.id, workerId, navigate);
+  const handleChatWithWorker = async (workerId: string) => {
+    if (!currentUser) {
+      toast.warning("Ishchi bilan bog'lanish uchun avval tizimga kiring!");
+      navigate('/auth');
+      return;
     }
+
+    console.log('🔗 Starting chat with worker:', workerId);
+    console.log('👤 Current user:', currentUser.id);
+
+    await openChatWith(currentUser.id, workerId, navigate);
   };
 
   return (
@@ -127,7 +135,10 @@ export const CustomerHome = () => {
                 >
                   <MessageCircle size={20} />
                 </button>
-                <button className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+                <button
+                  onClick={() => navigate(`/customer/create?workerId=${worker.id}&workerName=${worker.name}`)}
+                  className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                >
                   Yollash
                 </button>
               </div>

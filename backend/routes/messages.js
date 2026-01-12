@@ -1,58 +1,113 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Message = require('../models/Message');
 const Chat = require('../models/Chat');
+const cache = require('../utils/cache');
 
-// Get messages for a chat
-router.get('/:chatId', async (req, res) => {
+// Helper to convert string ID to ObjectId safely
+const toObjectId = (id) => {
     try {
-        const messages = await Message.find({ chatId: req.params.chatId })
+        if (mongoose.Types.ObjectId.isValid(id)) {
+            return new mongoose.Types.ObjectId(id);
+        }
+        return id;
+    } catch (e) {
+        return id;
+    }
+};
+
+// Get messages for a chat - OPTIMIZED WITH CACHE
+router.get('/:chatId', async (req, res) => {
+    const startTime = Date.now();
+    try {
+        const { chatId } = req.params;
+
+        // Check cache first
+        const cacheKey = `messages:${chatId}`;
+        const cachedData = cache.get(cacheKey);
+        if (cachedData) {
+            console.log(`⚡ Messages served from cache in ${Date.now() - startTime}ms`);
+            return res.json(cachedData);
+        }
+
+        const chatObjectId = toObjectId(chatId);
+
+        // Use lean() and limit for performance
+        const messages = await Message.find({ chatId: chatObjectId })
+            .sort({ createdAt: -1 })
+            .limit(100)
             .populate('senderId', 'name surname avatar')
-            .sort({ createdAt: 1 });
+            .lean();
+
+        // Reverse to get chronological order
+        messages.reverse();
+
+        // Cache for 2 seconds
+        cache.set(cacheKey, messages, 2000);
+
+        console.log(`⚡ Messages loaded from DB in ${Date.now() - startTime}ms (${messages.length} messages)`);
         res.json(messages);
     } catch (error) {
+        console.error('Messages GET error:', error);
         res.status(500).json({ message: error.message });
     }
 });
 
-// Send message
+// Send message - OPTIMIZED
 router.post('/', async (req, res) => {
+    const startTime = Date.now();
     try {
         const { chatId, senderId, content, attachments } = req.body;
 
-        // Create new message
+        console.log('📨 Sending message:', { chatId, senderId, content: content?.substring(0, 30) });
+
+        if (!chatId || !senderId || !content) {
+            return res.status(400).json({ message: 'chatId, senderId, and content are required' });
+        }
+
+        const chatObjectId = toObjectId(chatId);
+        const senderObjectId = toObjectId(senderId);
+
         const message = new Message({
-            chatId,
-            senderId,
+            chatId: chatObjectId,
+            senderId: senderObjectId,
             content,
             attachments,
             status: 'SENT'
         });
-        await message.save();
 
-        // Get chat to find other participants
-        const chat = await Chat.findById(chatId);
-        if (!chat) {
-            return res.status(404).json({ message: 'Chat not found' });
+        // Save message and get chat in parallel
+        const [savedMessage, chat] = await Promise.all([
+            message.save(),
+            Chat.findById(chatObjectId)
+        ]);
+
+        if (chat) {
+            const updateOps = {};
+            chat.participants.forEach(participantId => {
+                const participantIdStr = participantId.toString();
+                if (participantIdStr !== senderId.toString()) {
+                    updateOps[`unreadCounts.${participantIdStr}`] = 1;
+                }
+            });
+
+            await Chat.findByIdAndUpdate(chatObjectId, {
+                $set: { lastMessage: savedMessage._id, updatedAt: new Date() },
+                $inc: updateOps
+            });
+
+            // Invalidate caches
+            cache.delete(`messages:${chatId}`);
+            chat.participants.forEach(p => cache.delete(`chats:${p.toString()}`));
         }
 
-        // Increment unread count for all participants EXCEPT sender
-        chat.participants.forEach(participantId => {
-            const participantIdStr = participantId.toString();
-            if (participantIdStr !== senderId.toString()) {
-                const currentCount = chat.unreadCounts?.get(participantIdStr) || 0;
-                chat.unreadCounts.set(participantIdStr, currentCount + 1);
-            }
-        });
+        await savedMessage.populate('senderId', 'name surname avatar');
 
-        // Update lastMessage
-        chat.lastMessage = message._id;
-        await chat.save();
-
-        await message.populate('senderId', 'name surname avatar');
-        res.json(message);
+        console.log(`⚡ Message sent in ${Date.now() - startTime}ms`);
+        res.json(savedMessage);
     } catch (error) {
-        console.error('Error sending message:', error);
+        console.error('Message POST error:', error);
         res.status(500).json({ message: error.message });
     }
 });
@@ -64,8 +119,11 @@ router.delete('/:messageId', async (req, res) => {
         if (!message) {
             return res.status(404).json({ message: 'Message not found' });
         }
-        res.json({ success: true, message: 'Message deleted' });
+        // Invalidate message cache
+        cache.delete(`messages:${message.chatId}`);
+        res.json({ success: true });
     } catch (error) {
+        console.error('Message DELETE error:', error);
         res.status(500).json({ message: error.message });
     }
 });

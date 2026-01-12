@@ -50,7 +50,7 @@ export const JobsStatsModal: React.FC<JobsStatsModalProps> = ({ isOpen, onClose,
     }, {} as Record<string, number>);
 
     const topCategories = Object.entries(categoryStats)
-        .sort((a, b) => b[1] - a[1])
+        .sort((a, b) => Number(b[1]) - Number(a[1]))
         .slice(0, 3);
 
     // Filter orders for display
@@ -200,7 +200,7 @@ export const JobsStatsModal: React.FC<JobsStatsModalProps> = ({ isOpen, onClose,
                                             </div>
                                             <div className="text-right flex flex-col items-end gap-2">
                                                 <p className="font-bold text-green-600 dark:text-green-400">
-                                                    {order.price?.toLocaleString()} UZS
+                                                    {(Number(order.price) || 0).toLocaleString()} UZS
                                                 </p>
                                                 {getStatusBadge(order.status)}
                                             </div>
