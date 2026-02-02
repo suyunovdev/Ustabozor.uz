@@ -76,21 +76,26 @@ export const CreateOrder = () => {
     // Use selected location from map or saved location
     const locationToUse = selectedLocation || getSavedLocation();
 
-    await MockService.createOrder({
-      customerId: currentUser.id,
-      workerId: selectedWorkerId || undefined, // If worker is selected, assign directly
-      title: title,
-      description: orderDetails?.description || input,
-      category: category,
-      price: Number(price),
-      location: locationText || 'Hozirgi manzil',
-      lat: locationToUse?.lat,
-      lng: locationToUse?.lng,
-      aiSuggested: !!orderDetails
-    });
+    try {
+      await MockService.createOrder({
+        customerId: currentUser.id,
+        workerId: selectedWorkerId || undefined, // If worker is selected, assign directly
+        title: title,
+        description: orderDetails?.description || input,
+        category: category,
+        price: Number(price),
+        location: locationText || 'Hozirgi manzil',
+        lat: locationToUse?.lat,
+        lng: locationToUse?.lng,
+        aiSuggested: !!orderDetails
+      });
 
-    // Navigate to orders page to see the created order
-    navigate('/customer/orders');
+      // Navigate to orders page to see the created order
+      navigate('/customer/orders');
+    } catch (error: any) {
+      console.error('Order creation failed:', error);
+      alert(`Xatolik yuz berdi: ${error.message}`);
+    }
   };
 
   return (
@@ -168,6 +173,11 @@ export const CreateOrder = () => {
               <option value="Elektr">Elektr</option>
               <option value="Tozalash">Tozalash</option>
               <option value="Qurilish">Qurilish</option>
+              <option value="Dasturlash">Dasturlash</option>
+              <option value="Dizayn">Dizayn</option>
+              <option value="SMM">SMM</option>
+              <option value="Tarjima">Tarjima</option>
+              <option value="IT Yordam">IT Yordam</option>
             </select>
             <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
               <ChevronRight className="rotate-90" size={16} />

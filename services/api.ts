@@ -1,7 +1,7 @@
 import { User, Order, Chat, Message, WorkerProfile, Notification } from '../types';
 
 // Production uchun Render URL, development uchun localhost
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
 
 // Transform functions to convert MongoDB format to frontend format
 const transformUser = (user: any): User => {
@@ -109,36 +109,83 @@ const transformNotification = (notif: any): Notification => {
     };
 };
 
+// --- CACHE SYSTEM ---
+const localCache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 30000; // 30 seconds
+
+const getCachedData = (key: string) => {
+    const cached = localCache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        return cached.data;
+    }
+    return null;
+};
+
+const setCachedData = (key: string, data: any) => {
+    localCache.set(key, { data, timestamp: Date.now() });
+};
+
+// --- REQUEST HELPER ---
+async function request<T>(path: string, options: RequestInit = {}, useCache = false): Promise<T> {
+    const url = `${API_URL}${path}`;
+    const cacheKey = `${options.method || 'GET'}:${url}:${JSON.stringify(options.body || '')}`;
+
+    if (useCache && (!options.method || options.method === 'GET')) {
+        const cached = getCachedData(cacheKey);
+        if (cached) return cached;
+    }
+
+    try {
+        const res = await fetch(url, {
+            ...options,
+            headers: {
+                ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+                ...options.headers,
+            },
+        });
+
+        if (!res.ok) {
+            let errorMessage = `Request failed with status ${res.status}`;
+            try {
+                const errorData = await res.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+                // Not a JSON error
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await res.json();
+        if (useCache) setCachedData(cacheKey, data);
+        return data;
+    } catch (error) {
+        console.error(`API Request Error [${path}]:`, error);
+        throw error;
+    }
+}
+
 export const ApiService = {
     // --- AUTH ---
     login: async (email: string, password: string): Promise<User | null> => {
         try {
-            const res = await fetch(`${API_URL}/auth/login`, {
+            const data = await request<any>('/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
-            if (!res.ok) return null;
-            const data = await res.json();
             return transformUser(data);
         } catch (error) {
-            console.error('Login error:', error);
             return null;
         }
     },
 
     register: async (userData: any): Promise<User | null> => {
         try {
-            const res = await fetch(`${API_URL}/auth/register`, {
+            const data = await request<any>('/auth/register', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(userData)
             });
-            if (!res.ok) return null;
-            const data = await res.json();
             return transformUser(data);
         } catch (error) {
-            console.error('Register error:', error);
             return null;
         }
     },
@@ -146,210 +193,257 @@ export const ApiService = {
     // --- USERS ---
     getWorkers: async (): Promise<WorkerProfile[]> => {
         try {
-            const res = await fetch(`${API_URL}/users?role=WORKER`);
-            if (!res.ok) {
-                console.error('Failed to fetch workers:', res.status);
-                return [];
-            }
-            const data = await res.json();
-            if (!Array.isArray(data)) return [];
+            const data = await request<any[]>('/users?role=WORKER', {}, true);
             return data.map(transformWorker);
         } catch (error) {
-            console.error('Error fetching workers:', error);
             return [];
         }
     },
 
     getCustomers: async (): Promise<User[]> => {
         try {
-            const res = await fetch(`${API_URL}/users?role=CUSTOMER`);
-            if (!res.ok) return [];
-            const data = await res.json();
-            if (!Array.isArray(data)) return [];
+            const data = await request<any[]>('/users?role=CUSTOMER', {}, true);
             return data.map(transformUser);
         } catch (error) {
-            console.error('Error fetching customers:', error);
             return [];
         }
     },
 
     getAllUsers: async (): Promise<User[]> => {
-        const res = await fetch(`${API_URL}/users`);
-        const data = await res.json();
-        return data.map(transformUser);
+        try {
+            const data = await request<any[]>('/users', {}, true);
+            return data.map(transformUser);
+        } catch (error) {
+            return [];
+        }
     },
 
     getUserById: async (id: string): Promise<User | undefined> => {
-        const res = await fetch(`${API_URL}/users/${id}`);
-        if (!res.ok) return undefined;
-        const data = await res.json();
-        return transformUser(data);
+        try {
+            const data = await request<any>(`/users/${id}`, {}, true);
+            return transformUser(data);
+        } catch (error) {
+            return undefined;
+        }
     },
 
     updateUser: async (id: string, userData: Partial<User> | FormData): Promise<User | null> => {
-        const isFormData = userData instanceof FormData;
-        const headers: HeadersInit = isFormData ? {} : { 'Content-Type': 'application/json' };
-        const body = isFormData ? userData : JSON.stringify(userData);
-
-        const res = await fetch(`${API_URL}/users/${id}`, {
-            method: 'PUT',
-            headers: headers,
-            body: body
-        });
-        if (!res.ok) return null;
-        const resData = await res.json();
-        return transformUser(resData);
+        try {
+            const isFormData = userData instanceof FormData;
+            const data = await request<any>(`/users/${id}`, {
+                method: 'PUT',
+                body: isFormData ? userData : JSON.stringify(userData)
+            });
+            // Clear cache for this user
+            localCache.delete(`GET:${API_URL}/users/${id}:{}`);
+            return transformUser(data);
+        } catch (error) {
+            return null;
+        }
     },
 
     toggleOnlineStatus: async (id: string): Promise<User | null> => {
-        const res = await fetch(`${API_URL}/users/${id}/online`, {
-            method: 'PUT'
-        });
-        if (!res.ok) return null;
-        const data = await res.json();
-        return transformUser(data);
+        try {
+            const data = await request<any>(`/users/${id}/online`, { method: 'PUT' });
+            return transformUser(data);
+        } catch (error) {
+            return null;
+        }
     },
 
     // --- ORDERS ---
     getOrders: async (): Promise<Order[]> => {
         try {
-            const res = await fetch(`${API_URL}/orders`);
-            if (!res.ok) {
-                console.error('Failed to fetch orders:', res.status);
-                return [];
-            }
-            const data = await res.json();
-            if (!Array.isArray(data)) {
-                console.error('Orders response is not an array:', data);
-                return [];
-            }
+            const data = await request<any[]>('/orders', {}, true);
             return data.map(transformOrder);
         } catch (error) {
-            console.error('Error fetching orders:', error);
             return [];
         }
     },
 
     createOrder: async (order: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> => {
-        const res = await fetch(`${API_URL}/orders`, {
+        const data = await request<any>('/orders', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(order)
         });
-        const data = await res.json();
+        // Invalidate orders cache
+        localCache.forEach((_, key) => {
+            if (key.includes('/orders')) localCache.delete(key);
+        });
         return transformOrder(data);
     },
 
     updateOrder: async (id: string, orderData: Partial<Order>): Promise<Order | null> => {
-        const res = await fetch(`${API_URL}/orders/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(orderData)
-        });
-        if (!res.ok) return null;
-        const resData = await res.json();
-        return transformOrder(resData);
+        try {
+            const data = await request<any>(`/orders/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(orderData)
+            });
+            return transformOrder(data);
+        } catch (error) {
+            return null;
+        }
     },
 
     deleteOrder: async (id: string): Promise<boolean> => {
         try {
-            const res = await fetch(`${API_URL}/orders/${id}`, {
-                method: 'DELETE'
-            });
-            return res.ok;
+            await request(`/orders/${id}`, { method: 'DELETE' });
+            return true;
         } catch (error) {
-            console.error('Error deleting order:', error);
             return false;
         }
     },
 
     // --- CHATS ---
     getUserChats: async (userId: string): Promise<Chat[]> => {
-        const res = await fetch(`${API_URL}/chats?userId=${userId}`);
-        const data = await res.json();
-        return data.map(transformChat);
+        try {
+            const data = await request<any[]>(`/chats?userId=${userId}`, {}, true);
+            return data.map(transformChat);
+        } catch (error) {
+            return [];
+        }
     },
 
     getOrCreateChat: async (userId1: string, userId2: string): Promise<Chat> => {
-        const res = await fetch(`${API_URL}/chats`, {
+        const data = await request<any>('/chats', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ participantIds: [userId1, userId2] })
         });
-        const data = await res.json();
         return transformChat(data);
     },
 
     getChatMessages: async (chatId: string): Promise<Message[]> => {
-        const res = await fetch(`${API_URL}/messages/${chatId}`);
-        const data = await res.json();
-        return data.map(transformMessage);
+        try {
+            const data = await request<any[]>(`/messages/${chatId}`);
+            return data.map(transformMessage);
+        } catch (error) {
+            return [];
+        }
     },
 
     sendMessage: async (chatId: string, senderId: string, content: string, attachments?: any[]): Promise<Message> => {
-        const res = await fetch(`${API_URL}/messages`, {
+        console.log('📤 Sending message with attachments:', attachments);
+        const data = await request<any>('/messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chatId, senderId, content, attachments })
         });
-        const data = await res.json();
         return transformMessage(data);
+    },
+
+    deleteMessage: async (messageId: string): Promise<boolean> => {
+        try {
+            await request(`/messages/${messageId}`, { method: 'DELETE' });
+            return true;
+        } catch (error) {
+            return false;
+        }
     },
 
     markChatAsRead: async (chatId: string, userId: string): Promise<boolean> => {
         try {
-            const res = await fetch(`${API_URL}/chats/${chatId}/read`, {
+            await request(`/chats/${chatId}/read`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId })
             });
-            return res.ok;
+            return true;
         } catch (error) {
-            console.error('Error marking chat as read:', error);
             return false;
         }
     },
 
     // --- NOTIFICATIONS ---
     getNotifications: async (userId: string): Promise<Notification[]> => {
-        const res = await fetch(`${API_URL}/notifications?userId=${userId}`);
-        const data = await res.json();
-        return data.map(transformNotification);
+        try {
+            const data = await request<any[]>(`/notifications?userId=${userId}`);
+            return data.map(transformNotification);
+        } catch (error) {
+            return [];
+        }
     },
 
     markNotificationAsRead: async (id: string): Promise<Notification | null> => {
-        const res = await fetch(`${API_URL}/notifications/${id}/read`, {
-            method: 'PUT'
-        });
-        if (!res.ok) return null;
-        const data = await res.json();
-        return transformNotification(data);
+        try {
+            const data = await request<any>(`/notifications/${id}/read`, { method: 'PUT' });
+            return transformNotification(data);
+        } catch (error) {
+            return null;
+        }
     },
 
     markAllNotificationsAsRead: async (userId: string): Promise<boolean> => {
-        const res = await fetch(`${API_URL}/notifications/read-all?userId=${userId}`, {
-            method: 'PUT'
-        });
-        return res.ok;
+        try {
+            await request(`/notifications/read-all?userId=${userId}`, { method: 'PUT' });
+            return true;
+        } catch (error) {
+            return false;
+        }
     },
 
     deleteNotification: async (id: string): Promise<boolean> => {
-        const res = await fetch(`${API_URL}/notifications/${id}`, {
-            method: 'DELETE'
-        });
-        return res.ok;
+        try {
+            await request(`/notifications/${id}`, { method: 'DELETE' });
+            return true;
+        } catch (error) {
+            return false;
+        }
     },
 
     // --- USER DELETE ---
     deleteUser: async (id: string): Promise<boolean> => {
         try {
-            const res = await fetch(`${API_URL}/users/${id}`, {
-                method: 'DELETE'
-            });
-            return res.ok;
+            await request(`/users/${id}`, { method: 'DELETE' });
+            return true;
         } catch (error) {
-            console.error('Error deleting user:', error);
+            return false;
+        }
+    },
+
+    // --- UPLOAD ---
+    uploadFile: async (file: File): Promise<{ name: string; url: string; type: string } | null> => {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            return await request<any>('/upload', {
+                method: 'POST',
+                body: formData
+            });
+        } catch (error) {
+            return null;
+        }
+    },
+
+    // --- NEW ACTIONS ---
+    clearChat: async (chatId: string): Promise<boolean> => {
+        try {
+            await request(`/chats/${chatId}/messages`, { method: 'DELETE' });
+            return true;
+        } catch (error) {
+            return false;
+        }
+    },
+
+    blockUser: async (userId: string, blockedUserId: string): Promise<boolean> => {
+        try {
+            await request(`/users/${userId}/block`, {
+                method: 'POST',
+                body: JSON.stringify({ blockedUserId })
+            });
+            return true;
+        } catch (error) {
+            return false;
+        }
+    },
+
+    reportUser: async (reporterId: string, reportedUserId: string, reason: string): Promise<boolean> => {
+        try {
+            await request('/reports', {
+                method: 'POST',
+                body: JSON.stringify({ reporterId, reportedUserId, reason })
+            });
+            return true;
+        } catch (error) {
             return false;
         }
     }
 };
+

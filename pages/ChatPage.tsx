@@ -277,6 +277,7 @@ export const ChatPage: React.FC = () => {
         return (
             <div className="flex flex-col h-[calc(100vh-64px)]">
                 <ChatWindow
+                    chatId={selectedChatId}
                     messages={messages}
                     currentUserId={currentUser.id}
                     otherUser={otherUser}

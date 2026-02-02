@@ -6,9 +6,9 @@ const messageSchema = new mongoose.Schema({
     content: { type: String, required: true },
     status: { type: String, enum: ['SENT', 'DELIVERED', 'READ'], default: 'SENT' },
     attachments: [{
-        name: String,
-        url: String,
-        type: String
+        name: { type: String },
+        url: { type: String },
+        type: { type: String }
     }]
 }, { timestamps: true });
 

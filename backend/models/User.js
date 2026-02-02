@@ -19,7 +19,8 @@ const userSchema = new mongoose.Schema({
     location: {
         lat: { type: Number },
         lng: { type: Number }
-    }
+    },
+    blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

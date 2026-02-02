@@ -87,7 +87,7 @@ router.get('/', async (req, res) => {
         });
 
         // Cache for 3 seconds
-        cache.set(cacheKey, chatsWithUnread, 3000);
+        cache.set(cacheKey, chatsWithUnread, { ttl: 3000 });
 
         console.log(`⚡ Chats loaded from DB in ${Date.now() - startTime}ms for user ${userId}`);
         res.json(chatsWithUnread);
@@ -120,8 +120,12 @@ router.post('/', async (req, res) => {
         if (!chat) {
             // Create new chat
             console.log('📝 Creating new chat...');
-            const unreadCounts = new Map();
-            participantIds.forEach(id => unreadCounts.set(id.toString(), 0));
+
+            // Create unreadCounts as plain object
+            const unreadCounts = {};
+            participantIds.forEach(id => {
+                unreadCounts[id.toString()] = 0;
+            });
 
             chat = new Chat({
                 participants: objectIds,
@@ -209,6 +213,24 @@ router.get('/unread/:userId', async (req, res) => {
         ]);
 
         res.json({ unreadCount: result[0]?.totalUnread || 0 });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Clear chat history
+router.delete('/:chatId/messages', async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        await Message.deleteMany({ chatId: toObjectId(chatId) });
+
+        // Update chat lastMessage to null
+        await Chat.findByIdAndUpdate(chatId, { lastMessage: null });
+
+        // Invalidate cache
+        cache.delete(`messages:${chatId}`);
+
+        res.json({ success: true, message: 'Chat history cleared' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

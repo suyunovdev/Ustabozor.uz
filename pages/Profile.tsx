@@ -474,6 +474,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
         onBalanceUpdate={(newBalance) => {
           onUserUpdate({ ...user, balance: newBalance });
         }}
+        userRole={user.role as 'customer' | 'worker'}
       />
       {/* Jobs Stats Modal */}
       <JobsStatsModal

@@ -20,8 +20,32 @@ export const ChatList: React.FC<ChatListProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   const getOtherUser = (chat: Chat): User | undefined => {
-    const otherUserId = chat.participants.find(id => id !== currentUserId);
-    return users.find(u => u.id === otherUserId);
+    // Cast participants to any[] to handle the runtime reality vs type definition mismatch
+    const participants = chat.participants as any[];
+
+    const otherParticipant = participants.find((p: any) => {
+      const id = typeof p === 'string' ? p : (p._id || p.id);
+      return id !== currentUserId;
+    });
+
+    if (!otherParticipant) return undefined;
+
+    // If we have the full user object in participants, use it
+    if (typeof otherParticipant === 'object') {
+      const userObj = otherParticipant as any;
+      return {
+        id: userObj._id || userObj.id,
+        name: userObj.name,
+        surname: userObj.surname,
+        avatar: userObj.avatar,
+        role: userObj.role,
+        isOnline: userObj.isOnline,
+        ...userObj
+      } as User;
+    }
+
+    // Fallback to looking up in the users array
+    return users.find(u => u.id === otherParticipant);
   };
 
   const formatTime = (timestamp: string) => {
@@ -32,13 +56,17 @@ export const ChatList: React.FC<ChatListProps> = ({
 
     if (diff < 60000) return 'Hozir';
     if (diff < 86400000) {
-      return date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
     }
     if (daysDiff === 1) return 'Kecha';
     if (daysDiff < 7) {
-      return date.toLocaleDateString('uz-UZ', { weekday: 'short' });
+      const days = ['Yak', 'Dush', 'Sesh', 'Chor', 'Pay', 'Jum', 'Shan'];
+      return days[date.getDay()];
     }
-    return date.toLocaleDateString('uz-UZ', { month: 'short', day: 'numeric' });
+    const months = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyun', 'Iyul', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
+    return `${date.getDate()} ${months[date.getMonth()]}`;
   };
 
   const filteredChats = useMemo(() => {
@@ -173,8 +201,8 @@ export const ChatList: React.FC<ChatListProps> = ({
                           {otherUser.name} {otherUser.surname}
                         </span>
                         <span className={`flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase ${otherUser.role === 'WORKER'
-                            ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300'
-                            : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-300'
+                          ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300'
+                          : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-300'
                           }`}>
                           {otherUser.role === 'WORKER' ? 'Ishchi' : 'Mijoz'}
                         </span>
@@ -189,8 +217,8 @@ export const ChatList: React.FC<ChatListProps> = ({
 
                     <div className="flex items-center justify-between gap-2">
                       <span className={`text-sm truncate ${hasUnread
-                          ? 'font-medium text-gray-800 dark:text-gray-200'
-                          : 'text-gray-500 dark:text-gray-400'
+                        ? 'font-medium text-gray-800 dark:text-gray-200'
+                        : 'text-gray-500 dark:text-gray-400'
                         }`}>
                         {chat.lastMessage?.content || 'Xabar yo\'q'}
                       </span>

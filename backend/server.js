@@ -45,6 +45,8 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/chats', chatsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/upload', require('./routes/upload'));
 
 // Telegram Bot route
 const telegramRoutes = require('./routes/telegram');

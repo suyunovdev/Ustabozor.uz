@@ -47,7 +47,8 @@ const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: numbe
 // Kategoriyalar ro'yxati
 const CATEGORIES = [
   'Barchasi', 'Santexnika', 'Elektr', 'Tozalash', 'Yuk tashish',
-  'Qurilish', "Bo'yoqchi", "Bog'bon", 'Haydovchi', 'Remont', 'Boshqa'
+  'Qurilish', "Bo'yoqchi", "Bog'bon", 'Haydovchi', 'Remont',
+  'Dasturlash', 'Dizayn', 'SMM', 'Tarjima', 'IT Yordam', 'Boshqa'
 ];
 
 // Saralash opsiyalari

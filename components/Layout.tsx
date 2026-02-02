@@ -1,8 +1,10 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Home, MapPin, PlusCircle, MessageSquare, User as UserIcon, LogOut, Briefcase, Sun, Moon, History } from './Icons';
 import { User, UserRole } from '../types';
+import { ApiService } from '../services/api';
+import { toast } from 'react-toastify';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -116,6 +118,67 @@ const AdminSidebar = ({ logout, toggleTheme, isDarkMode, user }: { logout: () =>
 };
 
 export const Layout: React.FC<LayoutProps> = ({ children, user, logout, toggleTheme, isDarkMode }) => {
+  const displayedNotificationIds = useRef<Set<string>>(new Set());
+  const isFirstLoad = useRef(true);
+
+  // Poll for notifications
+  useEffect(() => {
+    if (!user) return;
+
+    const checkNotifications = async () => {
+      try {
+        const notifications = await ApiService.getNotifications(user.id);
+        const unreadNotifications = notifications.filter(n => !n.isRead);
+
+        if (isFirstLoad.current) {
+          // Initial load: just track existing unread notifications, don't spam toasts
+          unreadNotifications.forEach(n => displayedNotificationIds.current.add(n.id));
+          isFirstLoad.current = false;
+          return;
+        }
+
+        unreadNotifications.forEach(notification => {
+          if (!displayedNotificationIds.current.has(notification.id)) {
+            // Show toast for NEW notifications only
+            toast.info(
+              <div className="flex flex-col">
+                <span className="font-bold">{notification.title}</span>
+                <span className="text-sm line-clamp-2">{notification.message}</span>
+              </div>,
+              {
+                position: "top-right",
+                autoClose: 5000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                onClick: () => {
+                  // Navigate to chat if it's a message
+                  if (notification.type === 'MESSAGE' && notification.relatedId) {
+                    window.location.hash = `#/chat`;
+                  }
+                }
+              }
+            );
+
+            // Mark as displayed in this session
+            displayedNotificationIds.current.add(notification.id);
+          }
+        });
+      } catch (error) {
+        console.error('Error checking notifications:', error);
+      }
+    };
+
+    // Initial check
+    checkNotifications();
+
+    // Poll every 10 seconds
+    const intervalId = setInterval(checkNotifications, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [user]);
+
   if (!user) return <>{children}</>;
 
   if (user.role === UserRole.ADMIN) {

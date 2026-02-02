@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Message, MessageStatus } from '../../types';
-import { Check, CheckCheck, Copy, MoreHorizontal, Reply, Trash2 } from 'lucide-react';
+import { Check, CheckCheck, Copy, MoreHorizontal, Reply, Trash2, MapPin } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: Message;
@@ -8,6 +8,8 @@ interface MessageBubbleProps {
   senderName?: string;
   senderAvatar?: string;
   senderRole?: string;
+  onReply?: (message: Message) => void;
+  onDelete?: (messageId: string) => void;
 }
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -17,17 +19,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   isOwn,
   senderName,
   senderAvatar,
-  senderRole
+  senderRole,
+  onReply,
+  onDelete
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [reaction, setReaction] = useState<string | null>(null);
   const [showReactions, setShowReactions] = useState(false);
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('uz-UZ', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const date = new Date(timestamp);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
   };
 
   const getStatusIcon = () => {
@@ -47,6 +51,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const copyMessage = () => {
     navigator.clipboard.writeText(message.content);
+    setShowMenu(false);
+  };
+
+  const handleReply = () => {
+    if (onReply) onReply(message);
+    setShowMenu(false);
+  };
+
+  const handleDelete = () => {
+    if (onDelete) onDelete(message.id);
     setShowMenu(false);
   };
 
@@ -76,8 +90,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{senderName}</span>
             {senderRole && (
               <span className={`text-[8px] px-1 py-0.5 rounded font-bold uppercase ${senderRole === 'WORKER'
-                  ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300'
-                  : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-300'
+                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300'
+                : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-300'
                 }`}>
                 {senderRole === 'WORKER' ? 'Ishchi' : 'Mijoz'}
               </span>
@@ -113,12 +127,60 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           {/* Message bubble */}
           <div
             className={`relative py-2 px-3 rounded-2xl text-sm leading-relaxed break-words ${isOwn
-                ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-br-md shadow-sm'
-                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-100 dark:border-gray-700 rounded-bl-md shadow-sm'
+              ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-br-md shadow-sm'
+              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-100 dark:border-gray-700 rounded-bl-md shadow-sm'
               }`}
             onClick={() => setShowMenu(!showMenu)}
           >
-            <p className="whitespace-pre-wrap">{message.content}</p>
+            {(() => {
+              // 1. Check for Google Maps location
+              const locationMatch = message.content.match(/📍 Mening joylashuvim: (https:\/\/www\.google\.com\/maps\?q=[-0-9.]+,[-0-9.]+)/);
+              if (locationMatch) {
+                const url = locationMatch[1];
+                return (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 font-medium">
+                      <MapPin size={16} className={isOwn ? 'text-white' : 'text-red-500'} />
+                      <span>Mening joylashuvim</span>
+                    </div>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${isOwn
+                        ? 'bg-white/20 hover:bg-white/30 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+                        }`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MapPin size={14} />
+                      Xaritada ko'rish
+                    </a>
+                  </div>
+                );
+              }
+
+              // 2. Check for Reply
+              const replyMatch = message.content.match(/^> (.*?)\n\n(.*)/s);
+              if (replyMatch) {
+                const [, quotedText, actualText] = replyMatch;
+                return (
+                  <>
+                    <div className={`mb-2 px-2 py-1 rounded border-l-2 text-xs opacity-90 ${isOwn
+                      ? 'bg-white/10 border-white/50'
+                      : 'bg-gray-100 dark:bg-gray-700/50 border-blue-500 text-gray-600 dark:text-gray-300'
+                      }`}>
+                      <p className="font-medium opacity-75 text-[10px] mb-0.5">Javob:</p>
+                      <p className="line-clamp-2 italic">{quotedText}</p>
+                    </div>
+                    <p className="whitespace-pre-wrap">{actualText}</p>
+                  </>
+                );
+              }
+
+              // 3. Default text
+              return <p className="whitespace-pre-wrap">{message.content}</p>;
+            })()}
 
             {/* Reaction badge */}
             {reaction && (
@@ -141,12 +203,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 <Copy size={12} />
                 Nusxalash
               </button>
-              <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              <button
+                onClick={handleReply}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
                 <Reply size={12} />
                 Javob
               </button>
               {isOwn && (
-                <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <button
+                  onClick={handleDelete}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
                   <Trash2 size={12} />
                   O'chirish
                 </button>
@@ -155,21 +223,54 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
         </div>
 
+
         {/* Attachments */}
         {message.attachments && message.attachments.length > 0 && (
-          <div className={`flex flex-col gap-1 mt-1 ${isOwn ? 'items-end' : 'items-start'}`}>
-            {message.attachments.map((att, idx) => (
-              <div
-                key={idx}
-                className={`px-2 py-1 rounded-lg text-xs flex items-center gap-1.5 ${isOwn
-                    ? 'bg-blue-400/30 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                  }`}
-              >
-                <span>📎</span>
-                <span className="truncate max-w-[100px]">{att.name}</span>
-              </div>
-            ))}
+          <div className={`flex flex-col gap-2 mt-2 ${isOwn ? 'items-end' : 'items-start'}`}>
+            {message.attachments.map((att, idx) => {
+              const isImage = att.type?.startsWith('image/');
+
+              if (isImage) {
+                return (
+                  <a
+                    key={idx}
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative max-w-[240px] rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <img
+                      src={att.url}
+                      alt={att.name}
+                      className="w-full h-auto object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 dark:bg-gray-800/90 rounded-full p-2">
+                        <MapPin size={16} className="text-gray-700 dark:text-gray-300" />
+                      </div>
+                    </div>
+                  </a>
+                );
+              }
+
+              return (
+                <a
+                  key={idx}
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`px-3 py-2 rounded-xl text-xs flex items-center gap-2 transition-all hover:scale-105 ${isOwn
+                    ? 'bg-white/20 hover:bg-white/30 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                    }`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span>📎</span>
+                  <span className="truncate max-w-[140px] font-medium">{att.name}</span>
+                </a>
+              );
+            })}
           </div>
         )}
 

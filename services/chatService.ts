@@ -23,13 +23,23 @@ export const ChatService = {
     },
 
     deleteMessage: async (messageId: string): Promise<boolean> => {
-        // Backend doesn't have delete endpoint yet
-        console.log('deleteMessage not implemented in simple backend yet');
-        return true;
+        return await ApiService.deleteMessage(messageId);
     },
 
     getUnreadCount: async (userId: string): Promise<number> => {
         const chats = await ApiService.getUserChats(userId);
         return chats.reduce((sum, chat) => sum + chat.unreadCount, 0);
+    },
+
+    clearChat: async (chatId: string): Promise<boolean> => {
+        return await ApiService.clearChat(chatId);
+    },
+
+    blockUser: async (userId: string, blockedUserId: string): Promise<boolean> => {
+        return await ApiService.blockUser(userId, blockedUserId);
+    },
+
+    reportUser: async (reporterId: string, reportedUserId: string, reason: string): Promise<boolean> => {
+        return await ApiService.reportUser(reporterId, reportedUserId, reason);
     }
 };

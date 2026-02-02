@@ -58,9 +58,22 @@ router.get('/:chatId', async (req, res) => {
 router.post('/', async (req, res) => {
     const startTime = Date.now();
     try {
-        const { chatId, senderId, content, attachments } = req.body;
+        let { chatId, senderId, content, attachments } = req.body;
 
         console.log('📨 Sending message:', { chatId, senderId, content: content?.substring(0, 30) });
+        console.log('📎 Attachments received:', JSON.stringify(attachments, null, 2));
+        console.log('📎 Attachments type:', typeof attachments, Array.isArray(attachments));
+
+        // Parse attachments if it's a string
+        if (attachments && typeof attachments === 'string') {
+            try {
+                attachments = JSON.parse(attachments);
+                console.log('📎 Attachments parsed:', attachments);
+            } catch (e) {
+                console.error('Failed to parse attachments:', e);
+                attachments = undefined;
+            }
+        }
 
         if (!chatId || !senderId || !content) {
             return res.status(400).json({ message: 'chatId, senderId, and content are required' });
@@ -73,15 +86,18 @@ router.post('/', async (req, res) => {
             chatId: chatObjectId,
             senderId: senderObjectId,
             content,
-            attachments,
+            attachments: attachments || [],
             status: 'SENT'
         });
 
         // Save message and get chat in parallel
-        const [savedMessage, chat] = await Promise.all([
+        let [savedMessage, chat] = await Promise.all([
             message.save(),
             Chat.findById(chatObjectId)
         ]);
+
+        // Populate sender info immediately
+        savedMessage = await savedMessage.populate('senderId', 'name surname avatar');
 
         if (chat) {
             const updateOps = {};
@@ -100,9 +116,34 @@ router.post('/', async (req, res) => {
             // Invalidate caches
             cache.delete(`messages:${chatId}`);
             chat.participants.forEach(p => cache.delete(`chats:${p.toString()}`));
+
+            // Create notifications for other participants
+            const Notification = require('../models/Notification');
+            const notifications = [];
+
+            chat.participants.forEach(participantId => {
+                const participantIdStr = participantId.toString();
+                if (participantIdStr !== senderId.toString()) {
+                    notifications.push({
+                        userId: participantId,
+                        type: 'MESSAGE',
+                        title: 'Yangi xabar',
+                        message: `${savedMessage.senderId.name}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+                        relatedId: chatId,
+                        isRead: false,
+                        createdAt: new Date()
+                    });
+                }
+            });
+
+            if (notifications.length > 0) {
+                Notification.insertMany(notifications).catch(err =>
+                    console.error('Error creating notifications:', err)
+                );
+            }
         }
 
-        await savedMessage.populate('senderId', 'name surname avatar');
+
 
         console.log(`⚡ Message sent in ${Date.now() - startTime}ms`);
         res.json(savedMessage);

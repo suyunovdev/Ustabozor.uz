@@ -15,6 +15,9 @@ const CATEGORIES = [
   { id: 4, name: 'Yuk tashish', icon: <div className="text-orange-500 dark:text-orange-400">📦</div>, color: 'bg-orange-50 dark:bg-orange-900/20' },
   { id: 5, name: 'Qurilish', icon: <div className="text-gray-500 dark:text-gray-400">🧱</div>, color: 'bg-gray-100 dark:bg-gray-800' },
   { id: 6, name: 'Bog\'bon', icon: <div className="text-green-500 dark:text-green-400">🌿</div>, color: 'bg-green-50 dark:bg-green-900/20' },
+  { id: 7, name: 'Dasturlash', icon: <div className="text-indigo-500 dark:text-indigo-400">💻</div>, color: 'bg-indigo-50 dark:bg-indigo-900/20' },
+  { id: 8, name: 'Dizayn', icon: <div className="text-pink-500 dark:text-pink-400">🎨</div>, color: 'bg-pink-50 dark:bg-pink-900/20' },
+  { id: 9, name: 'SMM', icon: <div className="text-cyan-500 dark:text-cyan-400">📱</div>, color: 'bg-cyan-50 dark:bg-cyan-900/20' },
 ];
 
 export const CustomerHome = () => {

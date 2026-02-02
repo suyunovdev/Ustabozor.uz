@@ -110,9 +110,22 @@ export const initTelegramWebApp = () => {
             document.documentElement.classList.remove('dark');
         }
 
-        // Set header color
-        webApp.setHeaderColor(theme === 'dark' ? '#0d1117' : '#ffffff');
-        webApp.setBackgroundColor(theme === 'dark' ? '#0d1117' : '#f9fafb');
+        // Set header color (supported in v6.1+)
+        try {
+            if (webApp.setHeaderColor) {
+                webApp.setHeaderColor(theme === 'dark' ? '#0d1117' : '#ffffff');
+            }
+        } catch (e) {
+            console.warn('setHeaderColor not supported');
+        }
+
+        try {
+            if (webApp.setBackgroundColor) {
+                webApp.setBackgroundColor(theme === 'dark' ? '#0d1117' : '#f9fafb');
+            }
+        } catch (e) {
+            console.warn('setBackgroundColor not supported');
+        }
 
         console.log('✅ Telegram Web App initialized');
         console.log('👤 User:', webApp.initDataUnsafe.user);
