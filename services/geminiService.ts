@@ -1,14 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const GeminiService = {
   /**
    * Helps a customer draft a better job description and suggests a price.
    */
   enhanceOrderDetails: async (rawInput: string) => {
-    if (!apiKey) return null;
+    if (!apiKey || !ai) return null;
 
     try {
       const response = await ai.models.generateContent({
@@ -42,11 +42,11 @@ export const GeminiService = {
    * Admin tool to analyze market trends based on orders.
    */
   analyzeMarketTrends: async (orders: any[]) => {
-    if (!apiKey) return "AI tahlili uchun API kalit talab qilinadi.";
-    
+    if (!apiKey || !ai) return "AI tahlili uchun API kalit talab qilinadi.";
+
     try {
       const orderSummary = orders.map(o => `${o.category}: ${o.price}`).join(', ');
-      
+
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: `Mana bu so'nggi buyurtmalar ro'yxati: ${orderSummary}. 
