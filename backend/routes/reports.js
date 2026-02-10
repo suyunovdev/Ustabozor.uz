@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const Report = require('../models/Report');
+const { reportsRef } = require('../models/Report');
+const { docToObj, withTimestamps } = require('../models/firestore');
 
 // Create a report
 router.post('/', async (req, res) => {
@@ -11,15 +12,16 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ message: 'Reporter ID, Reported User ID, and Reason are required' });
         }
 
-        const report = new Report({
+        const docRef = await reportsRef().add(withTimestamps({
             reporterId,
             reportedUserId,
             reason,
-            description
-        });
+            description: description || '',
+            status: 'PENDING'
+        }));
 
-        await report.save();
-        res.status(201).json(report);
+        const newDoc = await docRef.get();
+        res.status(201).json(docToObj(newDoc));
     } catch (error) {
         console.error('Report POST error:', error);
         res.status(500).json({ message: error.message });

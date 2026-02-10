@@ -1,14 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const Notification = require('../models/Notification');
+const { notificationsRef } = require('../models/Notification');
+const { docToObj, queryToArray, withUpdatedAt, FieldValue } = require('../models/firestore');
+const { getDb } = require('../config/db');
 
 // Get notifications
 router.get('/', async (req, res) => {
     try {
         const userId = req.query.userId;
-        const query = userId ? { userId } : {};
-        const notifications = await Notification.find(query).sort({ createdAt: -1 });
-        res.json(notifications);
+        let query = notificationsRef();
+
+        if (userId) {
+            query = query.where('userId', '==', userId);
+        }
+
+        const snapshot = await query.orderBy('createdAt', 'desc').get();
+        res.json(queryToArray(snapshot));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -17,13 +24,16 @@ router.get('/', async (req, res) => {
 // Mark as read
 router.put('/:id/read', async (req, res) => {
     try {
-        const notification = await Notification.findByIdAndUpdate(
-            req.params.id,
-            { isRead: true },
-            { new: true }
-        );
-        if (notification) res.json(notification);
-        else res.status(404).json({ message: 'Notification not found' });
+        const docRef = notificationsRef().doc(req.params.id);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'Notification not found' });
+        }
+
+        await docRef.update(withUpdatedAt({ isRead: true }));
+        const updated = await docRef.get();
+        res.json(docToObj(updated));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -33,12 +43,24 @@ router.put('/:id/read', async (req, res) => {
 router.put('/read-all', async (req, res) => {
     try {
         const userId = req.query.userId;
-        if (userId) {
-            await Notification.updateMany({ userId }, { isRead: true });
-            res.json({ message: 'All notifications marked as read' });
-        } else {
-            res.status(400).json({ message: 'userId is required' });
+        if (!userId) {
+            return res.status(400).json({ message: 'userId is required' });
         }
+
+        const snapshot = await notificationsRef()
+            .where('userId', '==', userId)
+            .where('isRead', '==', false)
+            .get();
+
+        if (!snapshot.empty) {
+            const batch = getDb().batch();
+            snapshot.docs.forEach(doc => {
+                batch.update(doc.ref, { isRead: true, updatedAt: FieldValue.serverTimestamp() });
+            });
+            await batch.commit();
+        }
+
+        res.json({ message: 'All notifications marked as read' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -47,9 +69,15 @@ router.put('/read-all', async (req, res) => {
 // Delete notification
 router.delete('/:id', async (req, res) => {
     try {
-        const notification = await Notification.findByIdAndDelete(req.params.id);
-        if (notification) res.json({ message: 'Notification deleted' });
-        else res.status(404).json({ message: 'Notification not found' });
+        const docRef = notificationsRef().doc(req.params.id);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'Notification not found' });
+        }
+
+        await docRef.delete();
+        res.json({ message: 'Notification deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

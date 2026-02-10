@@ -1,23 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
-const Chat = require('../models/Chat');
-const Message = require('../models/Message');
+const { chatsRef } = require('../models/Chat');
+const { messagesRef } = require('../models/Message');
+const { usersRef } = require('../models/User');
+const { docToObj, queryToArray, withTimestamps, populateUsers, FieldValue } = require('../models/firestore');
+const { getDb } = require('../config/db');
 const cache = require('../utils/cache');
 
-// Helper to convert string ID to ObjectId safely
-const toObjectId = (id) => {
-    try {
-        if (mongoose.Types.ObjectId.isValid(id)) {
-            return new mongoose.Types.ObjectId(id);
-        }
-        return id;
-    } catch (e) {
-        return id;
-    }
-};
-
-// Get chats for a user - OPTIMIZED WITH CACHE
+// Get chats for a user
 router.get('/', async (req, res) => {
     const startTime = Date.now();
     try {
@@ -26,71 +16,67 @@ router.get('/', async (req, res) => {
             return res.json([]);
         }
 
-        // Check cache first
         const cacheKey = `chats:${userId}`;
         const cachedData = cache.get(cacheKey);
         if (cachedData) {
-            console.log(`⚡ Chats served from cache in ${Date.now() - startTime}ms`);
+            console.log(`Chats served from cache in ${Date.now() - startTime}ms`);
             return res.json(cachedData);
         }
 
-        // Convert userId to ObjectId for proper matching
-        const userObjectId = toObjectId(userId);
+        // Query chats where user is a participant
+        const snapshot = await chatsRef()
+            .where('participants', 'array-contains', userId)
+            .orderBy('updatedAt', 'desc')
+            .limit(50)
+            .get();
 
-        // Use aggregation pipeline for maximum performance
-        const chats = await Chat.aggregate([
-            { $match: { participants: userObjectId } },
-            { $sort: { updatedAt: -1 } },
-            { $limit: 50 },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'participants',
-                    foreignField: '_id',
-                    as: 'participantDetails',
-                    pipeline: [
-                        { $project: { name: 1, surname: 1, avatar: 1, role: 1, isOnline: 1 } }
-                    ]
-                }
-            },
-            {
-                $lookup: {
-                    from: 'messages',
-                    localField: 'lastMessage',
-                    foreignField: '_id',
-                    as: 'lastMessageDetails'
-                }
-            },
-            {
-                $project: {
-                    _id: 1,
-                    participants: '$participantDetails',
-                    lastMessage: { $arrayElemAt: ['$lastMessageDetails', 0] },
-                    unreadCounts: 1,
-                    createdAt: 1,
-                    updatedAt: 1
-                }
-            }
-        ]);
+        const chats = queryToArray(snapshot);
 
-        // Process results
-        const chatsWithUnread = chats.map(chat => {
-            let unreadCount = 0;
-            if (chat.unreadCounts && chat.unreadCounts[userId]) {
-                unreadCount = chat.unreadCounts[userId];
-            }
+        // Collect all participant IDs and lastMessage IDs
+        const allParticipantIds = new Set();
+        const lastMessageIds = [];
+        chats.forEach(chat => {
+            (chat.participants || []).forEach(id => allParticipantIds.add(id));
+            if (chat.lastMessage) lastMessageIds.push(chat.lastMessage);
+        });
+
+        // Batch fetch users
+        const usersMap = await populateUsers([...allParticipantIds], ['name', 'surname', 'avatar', 'role', 'isOnline']);
+
+        // Batch fetch last messages
+        const messagesMap = {};
+        if (lastMessageIds.length > 0) {
+            const msgRefs = lastMessageIds.map(id => messagesRef().doc(id));
+            const msgDocs = await getDb().getAll(...msgRefs);
+            msgDocs.forEach(doc => {
+                if (doc.exists) {
+                    messagesMap[doc.id] = docToObj(doc);
+                }
+            });
+        }
+
+        // Assemble results
+        const chatsWithDetails = chats.map(chat => {
+            const participantDetails = (chat.participants || []).map(id =>
+                usersMap[id] || { _id: id, id }
+            );
+            const lastMessage = chat.lastMessage ? messagesMap[chat.lastMessage] || null : null;
+            const unreadCount = (chat.unreadCounts && chat.unreadCounts[userId]) || 0;
+
             return {
-                ...chat,
+                _id: chat._id,
+                id: chat.id,
+                participants: participantDetails,
+                lastMessage,
                 unreadCount,
-                unreadCounts: undefined
+                createdAt: chat.createdAt,
+                updatedAt: chat.updatedAt
             };
         });
 
-        // Cache for 3 seconds
-        cache.set(cacheKey, chatsWithUnread, { ttl: 3000 });
-
-        console.log(`⚡ Chats loaded from DB in ${Date.now() - startTime}ms for user ${userId}`);
-        res.json(chatsWithUnread);
+        cache.set(cacheKey, chatsWithDetails, { ttl: 3000 });
+        console.log(`Chats loaded from DB in ${Date.now() - startTime}ms for user ${userId}`);
+        res.json(chatsWithDetails);
     } catch (error) {
         console.error('Chat GET error:', error);
         res.status(500).json({ message: error.message });
@@ -103,60 +89,56 @@ router.post('/', async (req, res) => {
     try {
         const { participantIds } = req.body;
 
-        console.log('📨 Creating/getting chat for participants:', participantIds);
-
         if (!participantIds || participantIds.length < 2) {
             return res.status(400).json({ message: 'At least 2 participant IDs required' });
         }
 
-        // Convert to ObjectIds
-        const objectIds = participantIds.map(id => toObjectId(id));
+        // Find existing chat: query for chats containing first user, then filter
+        const snapshot = await chatsRef()
+            .where('participants', 'array-contains', participantIds[0])
+            .get();
 
-        // Try to find existing chat with these participants
-        let chat = await Chat.findOne({
-            participants: { $all: objectIds, $size: objectIds.length }
+        let existingChat = null;
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.participants.length === participantIds.length &&
+                participantIds.every(id => data.participants.includes(id))) {
+                existingChat = docToObj(doc);
+            }
         });
 
-        if (!chat) {
+        if (!existingChat) {
             // Create new chat
-            console.log('📝 Creating new chat...');
-
-            // Create unreadCounts as plain object
             const unreadCounts = {};
-            participantIds.forEach(id => {
-                unreadCounts[id.toString()] = 0;
-            });
+            participantIds.forEach(id => { unreadCounts[id] = 0; });
 
-            chat = new Chat({
-                participants: objectIds,
-                unreadCounts: unreadCounts
-            });
-            await chat.save();
-            console.log('✅ New chat created:', chat._id);
-        } else {
-            console.log('✅ Existing chat found:', chat._id);
+            const chatRef = await chatsRef().add(withTimestamps({
+                participants: participantIds,
+                unreadCounts,
+                lastMessage: null
+            }));
+
+            const newDoc = await chatRef.get();
+            existingChat = docToObj(newDoc);
         }
 
         // Get participant details
-        const User = require('../models/User');
-        const participants = await User.find(
-            { _id: { $in: objectIds } },
-            'name surname avatar role isOnline'
-        ).lean();
+        const usersMap = await populateUsers(participantIds, ['name', 'surname', 'avatar', 'role', 'isOnline']);
+        const participants = participantIds.map(id => usersMap[id] || { _id: id, id });
 
-        // Invalidate cache for all participants
+        // Invalidate cache
         participantIds.forEach(id => cache.delete(`chats:${id}`));
 
         const result = {
-            _id: chat._id,
-            id: chat._id.toString(),
+            _id: existingChat._id,
+            id: existingChat.id,
             participants,
             unreadCount: 0,
-            createdAt: chat.createdAt,
-            updatedAt: chat.updatedAt
+            createdAt: existingChat.createdAt,
+            updatedAt: existingChat.updatedAt
         };
 
-        console.log(`⚡ Chat ready in ${Date.now() - startTime}ms`);
+        console.log(`Chat ready in ${Date.now() - startTime}ms`);
         res.json(result);
     } catch (error) {
         console.error('Chat POST error:', error);
@@ -174,20 +156,28 @@ router.put('/:chatId/read', async (req, res) => {
             return res.status(400).json({ message: 'userId is required' });
         }
 
-        const updateKey = `unreadCounts.${userId}`;
-        await Chat.findByIdAndUpdate(chatId, {
-            $set: { [updateKey]: 0 }
+        await chatsRef().doc(chatId).update({
+            [`unreadCounts.${userId}`]: 0,
+            updatedAt: FieldValue.serverTimestamp()
         });
 
-        // Update messages in background
-        Message.updateMany(
-            { chatId: toObjectId(chatId), senderId: { $ne: toObjectId(userId) }, status: { $ne: 'READ' } },
-            { $set: { status: 'READ' } }
-        ).exec();
+        // Update messages status in background
+        const msgSnapshot = await messagesRef()
+            .where('chatId', '==', chatId)
+            .where('status', 'in', ['SENT', 'DELIVERED'])
+            .get();
 
-        // Invalidate cache
+        if (!msgSnapshot.empty) {
+            const batch = getDb().batch();
+            msgSnapshot.docs.forEach(doc => {
+                if (doc.data().senderId !== userId) {
+                    batch.update(doc.ref, { status: 'READ' });
+                }
+            });
+            batch.commit().catch(err => console.error('Error updating message status:', err));
+        }
+
         cache.delete(`chats:${userId}`);
-
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -198,21 +188,20 @@ router.put('/:chatId/read', async (req, res) => {
 router.get('/unread/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
-        const userObjectId = toObjectId(userId);
 
-        const result = await Chat.aggregate([
-            { $match: { participants: userObjectId } },
-            {
-                $group: {
-                    _id: null,
-                    totalUnread: {
-                        $sum: { $ifNull: [`$unreadCounts.${userId}`, 0] }
-                    }
-                }
+        const snapshot = await chatsRef()
+            .where('participants', 'array-contains', userId)
+            .get();
+
+        let totalUnread = 0;
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.unreadCounts && data.unreadCounts[userId]) {
+                totalUnread += data.unreadCounts[userId];
             }
-        ]);
+        });
 
-        res.json({ unreadCount: result[0]?.totalUnread || 0 });
+        res.json({ unreadCount: totalUnread });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -222,14 +211,24 @@ router.get('/unread/:userId', async (req, res) => {
 router.delete('/:chatId/messages', async (req, res) => {
     try {
         const { chatId } = req.params;
-        await Message.deleteMany({ chatId: toObjectId(chatId) });
 
-        // Update chat lastMessage to null
-        await Chat.findByIdAndUpdate(chatId, { lastMessage: null });
+        // Delete all messages in chat (batch, max 500)
+        const msgSnapshot = await messagesRef()
+            .where('chatId', '==', chatId)
+            .get();
 
-        // Invalidate cache
+        if (!msgSnapshot.empty) {
+            const batch = getDb().batch();
+            msgSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+        }
+
+        await chatsRef().doc(chatId).update({
+            lastMessage: null,
+            updatedAt: FieldValue.serverTimestamp()
+        });
+
         cache.delete(`messages:${chatId}`);
-
         res.json({ success: true, message: 'Chat history cleared' });
     } catch (error) {
         res.status(500).json({ message: error.message });

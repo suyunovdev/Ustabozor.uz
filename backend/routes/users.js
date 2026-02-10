@@ -1,28 +1,25 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const User = require('../models/User');
+const { usersRef } = require('../models/User');
+const { docToObj, queryToArray, withUpdatedAt, FieldValue } = require('../models/firestore');
+const { getBucket } = require('../config/db');
 
-// Configure Multer
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
-});
-
-const upload = multer({ storage: storage });
+// Configure Multer for memory storage (Firebase Storage upload)
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Get all users or filter by role
 router.get('/', async (req, res) => {
     try {
         const role = req.query.role;
-        const query = role ? { role } : {};
-        const users = await User.find(query);
-        res.json(users);
+        let query = usersRef();
+
+        if (role) {
+            query = query.where('role', '==', role);
+        }
+
+        const snapshot = await query.get();
+        res.json(queryToArray(snapshot));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -31,9 +28,12 @@ router.get('/', async (req, res) => {
 // Get user by ID
 router.get('/:id', async (req, res) => {
     try {
-        const user = await User.findById(req.params.id);
-        if (user) res.json(user);
-        else res.status(404).json({ message: 'User not found' });
+        const doc = await usersRef().doc(req.params.id).get();
+        if (doc.exists) {
+            res.json(docToObj(doc));
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -59,13 +59,30 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
             }
         }
 
+        // Upload avatar to Firebase Storage
         if (req.file) {
-            updatedData.avatar = `http://localhost:5000/uploads/${req.file.filename}`;
+            const bucket = getBucket();
+            if (bucket) {
+                const fileName = `uploads/avatars/${Date.now()}-${req.file.originalname}`;
+                const file = bucket.file(fileName);
+                await file.save(req.file.buffer, {
+                    metadata: { contentType: req.file.mimetype }
+                });
+                await file.makePublic();
+                updatedData.avatar = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+            }
         }
 
-        const user = await User.findByIdAndUpdate(req.params.id, updatedData, { new: true });
-        if (user) res.json(user);
-        else res.status(404).json({ message: 'User not found' });
+        const docRef = usersRef().doc(req.params.id);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        await docRef.update(withUpdatedAt(updatedData));
+        const updated = await docRef.get();
+        res.json(docToObj(updated));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -74,14 +91,17 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
 // Toggle online status
 router.put('/:id/online', async (req, res) => {
     try {
-        const user = await User.findById(req.params.id);
-        if (user) {
-            user.isOnline = !user.isOnline;
-            await user.save();
-            res.json(user);
-        } else {
-            res.status(404).json({ message: 'User not found' });
+        const docRef = usersRef().doc(req.params.id);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'User not found' });
         }
+
+        const currentStatus = doc.data().isOnline || false;
+        await docRef.update(withUpdatedAt({ isOnline: !currentStatus }));
+        const updated = await docRef.get();
+        res.json(docToObj(updated));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -90,12 +110,15 @@ router.put('/:id/online', async (req, res) => {
 // Delete user
 router.delete('/:id', async (req, res) => {
     try {
-        const user = await User.findByIdAndDelete(req.params.id);
-        if (user) {
-            res.json({ success: true, message: 'User deleted' });
-        } else {
-            res.status(404).json({ message: 'User not found' });
+        const docRef = usersRef().doc(req.params.id);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'User not found' });
         }
+
+        await docRef.delete();
+        res.json({ success: true, message: 'User deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -109,15 +132,17 @@ router.post('/:id/block', async (req, res) => {
             return res.status(400).json({ message: 'Blocked User ID is required' });
         }
 
-        const user = await User.findById(req.params.id);
-        if (!user) {
+        const docRef = usersRef().doc(req.params.id);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        if (!user.blockedUsers.includes(blockedUserId)) {
-            user.blockedUsers.push(blockedUserId);
-            await user.save();
-        }
+        await docRef.update({
+            blockedUsers: FieldValue.arrayUnion(blockedUserId),
+            updatedAt: FieldValue.serverTimestamp()
+        });
 
         res.json({ success: true, message: 'User blocked' });
     } catch (error) {

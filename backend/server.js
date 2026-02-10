@@ -2,17 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const path = require('path');
-const fs = require('fs');
-const connectDB = require('./config/db');
+const { initializeFirebase } = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB
-connectDB();
+// Initialize Firebase
+initializeFirebase();
 
-// Middleware - Production uchun CORS sozlamalari
+// Middleware
 const corsOptions = {
     origin: process.env.FRONTEND_URL || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -21,15 +19,6 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
-
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
-
-// Serve static files
-app.use('/uploads', express.static('uploads'));
 
 // --- ROUTES ---
 const authRoutes = require('./routes/auth');
