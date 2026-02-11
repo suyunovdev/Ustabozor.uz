@@ -85,6 +85,13 @@ const App = () => {
           toast.success(`📍 Joylashuv: ${location.city}, ${location.district || location.country}`, {
             autoClose: 3000
           });
+
+          // GPS locationni backend'ga saqlash (xaritada to'g'ri ko'rsatish uchun)
+          if (user && location.lat && location.lng) {
+            ApiService.updateUser(user.id, {
+              location: { lat: location.lat, lng: location.lng }
+            } as any).catch(err => console.error('Location update error:', err));
+          }
         })
         .catch((error) => {
           console.error('Location error:', error);
@@ -118,9 +125,14 @@ const App = () => {
       }
     }
 
-    // Avtomatik ravishda foydalanuvchini onlayn qilish
+    // Avtomatik ravishda foydalanuvchini onlayn qilish va locationni yuborish
     try {
-      await ApiService.updateUser(loggedInUser.id, { isOnline: true } as any);
+      const savedLoc = getSavedLocation();
+      const updateData: any = { isOnline: true };
+      if (savedLoc && savedLoc.lat && savedLoc.lng) {
+        updateData.location = { lat: savedLoc.lat, lng: savedLoc.lng };
+      }
+      await ApiService.updateUser(loggedInUser.id, updateData);
       loggedInUser.isOnline = true;
     } catch (error) {
       console.error('Could not set user online:', error);

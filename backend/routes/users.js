@@ -50,6 +50,15 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
         if (updatedData.rating) updatedData.rating = Number(updatedData.rating);
         if (updatedData.ratingCount) updatedData.ratingCount = Number(updatedData.ratingCount);
 
+        // Handle location object
+        if (updatedData.location) {
+            if (typeof updatedData.location === 'string') {
+                try { updatedData.location = JSON.parse(updatedData.location); } catch (e) { /* keep as is */ }
+            }
+            if (updatedData.location.lat) updatedData.location.lat = Number(updatedData.location.lat);
+            if (updatedData.location.lng) updatedData.location.lng = Number(updatedData.location.lng);
+        }
+
         // Handle skills array
         if (typeof updatedData.skills === 'string') {
             try {
