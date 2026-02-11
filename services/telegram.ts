@@ -215,3 +215,12 @@ export const closeTelegramWebApp = () => {
         webApp.close();
     }
 };
+
+// Get raw initData for backend verification
+export const getTelegramInitData = (): string | null => {
+    const webApp = getTelegramWebApp();
+    if (webApp && webApp.initData) {
+        return webApp.initData;
+    }
+    return null;
+};

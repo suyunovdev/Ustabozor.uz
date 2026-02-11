@@ -17,10 +17,11 @@ import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminFinance } from './pages/admin/AdminFinance';
 import { ChatPage } from './pages/ChatPage';
 import { MapFinder } from './pages/MapFinder';
+import { TelegramRegister } from './pages/TelegramRegister';
 import { User, UserRole } from './types';
 import { ApiService } from './services/api';
 import { requestUserLocation, getSavedLocation, isLocationStale, LocationData } from './services/locationService';
-import { initTelegramWebApp, isTelegramWebApp, getTelegramUser } from './services/telegram';
+import { initTelegramWebApp, isTelegramWebApp, getTelegramUser, getTelegramInitData } from './services/telegram';
 
 const App = () => {
   const [user, setUser] = useState<User | null>(() => {
@@ -45,21 +46,49 @@ const App = () => {
     return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
 
-  // Telegram Web App initialization
-  useEffect(() => {
-    if (isTelegramWebApp()) {
-      const initialized = initTelegramWebApp();
-      if (initialized) {
-        toast.success('📱 Telegram orqali ulandi!', { autoClose: 2000 });
+  const [showTelegramRegister, setShowTelegramRegister] = useState(false);
+  const [telegramRegistrationData, setTelegramRegistrationData] = useState<{ initData: string; tgUser: any } | null>(null);
+  const [telegramLoading, setTelegramLoading] = useState(false);
 
-        // Get Telegram user info
-        const tgUser = getTelegramUser();
-        if (tgUser) {
-          console.log('Telegram User:', tgUser);
-          // You can auto-login or show user info here
-        }
-      }
+  // Telegram Web App initialization + auto-login
+  useEffect(() => {
+    if (!isTelegramWebApp()) return;
+
+    const initialized = initTelegramWebApp();
+    if (!initialized) return;
+
+    const initData = getTelegramInitData();
+    const tgUser = getTelegramUser();
+
+    if (!initData || !tgUser) {
+      toast.info('Telegram orqali ulandi', { autoClose: 2000 });
+      return;
     }
+
+    // Agar allaqachon login bo'lgan bo'lsa, qayta auth qilmaslik
+    if (user) return;
+
+    setTelegramLoading(true);
+
+    ApiService.telegramAuth(initData)
+      .then((result: any) => {
+        if (result.user) {
+          // Foydalanuvchi topildi — avtomatik login
+          handleLogin(result.user);
+          toast.success(`Xush kelibsiz, ${result.user.name}!`, { autoClose: 2000 });
+        } else if (result.needsRegistration) {
+          // Yangi foydalanuvchi — ro'yxatdan o'tish formasi
+          setTelegramRegistrationData({ initData, tgUser });
+          setShowTelegramRegister(true);
+        }
+      })
+      .catch((err: any) => {
+        console.error('Telegram auth error:', err);
+        toast.error('Telegram avtorizatsiya xatosi', { autoClose: 3000 });
+      })
+      .finally(() => {
+        setTelegramLoading(false);
+      });
   }, []);
 
   // Dark mode effect
@@ -174,8 +203,29 @@ const App = () => {
   return (
     <Router>
       <ToastContainer position="top-right" autoClose={3000} theme={isDarkMode ? 'dark' : 'light'} aria-label="Notifications" />
+      {telegramLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-gray-900">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-300">Telegram orqali kirish...</p>
+          </div>
+        </div>
+      )}
       <Routes>
-        {!user ? (
+        {!user && showTelegramRegister && telegramRegistrationData ? (
+          <Route path="*" element={
+            <TelegramRegister
+              initData={telegramRegistrationData.initData}
+              tgUser={telegramRegistrationData.tgUser}
+              onRegister={(registeredUser: User) => {
+                setShowTelegramRegister(false);
+                setTelegramRegistrationData(null);
+                handleLogin(registeredUser);
+              }}
+              onLogin={handleLogin}
+            />
+          } />
+        ) : !user ? (
           <Route path="*" element={<Auth onLogin={handleLogin} />} />
         ) : (
           <Route
