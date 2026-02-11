@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const crypto = require('crypto');
 const { usersRef } = require('../models/User');
 const { docToObj, queryToArray, withUpdatedAt, FieldValue } = require('../models/firestore');
 const { getBucket } = require('../config/db');
@@ -72,13 +73,18 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
         if (req.file) {
             const bucket = getBucket();
             if (bucket) {
+                const token = crypto.randomUUID();
                 const fileName = `uploads/avatars/${Date.now()}-${req.file.originalname}`;
                 const file = bucket.file(fileName);
                 await file.save(req.file.buffer, {
-                    metadata: { contentType: req.file.mimetype }
+                    metadata: {
+                        contentType: req.file.mimetype,
+                        metadata: {
+                            firebaseStorageDownloadTokens: token
+                        }
+                    }
                 });
-                await file.makePublic();
-                updatedData.avatar = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+                updatedData.avatar = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
             }
         }
 
