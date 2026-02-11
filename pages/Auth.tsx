@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 import { MockService } from '../services/mockDb';
 import {
-  Zap, ChevronRight, Loader2, User as UserIcon, Briefcase, TrendingUp,
+  Zap, ChevronRight, Loader2, User as UserIcon, Briefcase,
   Camera, FileText, CheckCircle, Mail, Lock, Eye, EyeOff, X
 } from '../components/Icons';
 
@@ -373,18 +373,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               <div className="text-left">
                 <h3 className="font-bold text-xl text-white">Ishchi (Usta)</h3>
                 <p className="text-sm text-green-100">Buyurtmalar olish va daromad qilish</p>
-              </div>
-            </button>
-            <button
-              onClick={() => handleRoleSelect(UserRole.ADMIN)}
-              className="w-full p-5 border border-white/20 bg-white/5 backdrop-blur-md hover:bg-white/10 rounded-2xl flex items-center space-x-4 transition-all group opacity-70 hover:opacity-100"
-            >
-              <div className="w-14 h-14 bg-purple-500 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                <TrendingUp size={28} />
-              </div>
-              <div className="text-left">
-                <h3 className="font-bold text-xl text-white">Admin</h3>
-                <p className="text-sm text-purple-100">Platforma boshqaruvi</p>
               </div>
             </button>
           </div>

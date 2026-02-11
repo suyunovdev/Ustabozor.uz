@@ -48,7 +48,7 @@ router.post('/register', async (req, res) => {
             phone: req.body.phone || '',
             email: req.body.email,
             password: req.body.password,
-            role: req.body.role || 'CUSTOMER',
+            role: (req.body.role === 'ADMIN') ? 'CUSTOMER' : (req.body.role || 'CUSTOMER'),
             avatar: req.body.avatar || '',
             balance: 0,
             rating: 5.0,
