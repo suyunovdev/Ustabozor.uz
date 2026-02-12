@@ -147,13 +147,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, logout, toggleTh
               </div>,
               {
                 position: "top-right",
-                autoClose: 5000,
-                hideProgressBar: false,
+                autoClose: 3000,
+                hideProgressBar: true,
                 closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
                 onClick: () => {
-                  // Navigate to chat if it's a message
                   if (notification.type === 'MESSAGE' && notification.relatedId) {
                     window.location.hash = `#/chat`;
                   }
@@ -173,8 +170,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, logout, toggleTh
     // Initial check
     checkNotifications();
 
-    // Poll every 10 seconds
-    const intervalId = setInterval(checkNotifications, 10000);
+    // Poll every 30 seconds
+    const intervalId = setInterval(checkNotifications, 30000);
 
     return () => clearInterval(intervalId);
   }, [user]);

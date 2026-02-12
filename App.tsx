@@ -61,7 +61,6 @@ const App = () => {
     const tgUser = getTelegramUser();
 
     if (!initData || !tgUser) {
-      toast.info('Telegram orqali ulandi', { autoClose: 2000 });
       return;
     }
 
@@ -109,15 +108,9 @@ const App = () => {
   // Joylashuvni so'rash - foydalanuvchi login bo'lgandan keyin
   useEffect(() => {
     if (user && isLocationStale(userLocation)) {
-      // Joylashuvni so'rash
-      toast.info('📍 Joylashuvingiz aniqlanmoqda...', { autoClose: 2000 });
-
       requestUserLocation()
         .then((location) => {
           setUserLocation(location);
-          toast.success(`📍 Joylashuv: ${location.city}, ${location.district || location.country}`, {
-            autoClose: 3000
-          });
 
           // GPS locationni backend'ga saqlash (xaritada to'g'ri ko'rsatish uchun)
           if (user && location.lat && location.lng) {
@@ -128,9 +121,6 @@ const App = () => {
         })
         .catch((error) => {
           console.error('Location error:', error);
-          toast.warn('📍 Joylashuvni aniqlab bo\'lmadi. Default manzil ishlatilmoqda.', {
-            autoClose: 3000
-          });
         });
     }
   }, [user]);

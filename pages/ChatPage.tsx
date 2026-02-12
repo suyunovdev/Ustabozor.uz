@@ -194,17 +194,16 @@ export const ChatPage: React.FC = () => {
 
     const playNotificationSound = useCallback(() => {
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-        audio.volume = 0.5;
+        audio.volume = 0.3;
         audio.play().catch(() => { });
-        toast.info('Yangi xabar keldi! 💬', { position: "top-right", autoClose: 2000 });
     }, []);
 
     // Initial load
     useEffect(() => {
         loadChats(true);
 
-        // Polling interval - 5 seconds for chat list
-        const interval = setInterval(() => loadChats(false), 5000);
+        // Polling interval - 8 seconds for chat list
+        const interval = setInterval(() => loadChats(false), 8000);
 
         return () => {
             clearInterval(interval);
@@ -222,10 +221,10 @@ export const ChatPage: React.FC = () => {
             // Mark as read (fire and forget)
             ChatService.markAsRead(selectedChatId, currentUser.id).catch(() => { });
 
-            // Polling for messages - 3 seconds
+            // Polling for messages - 4 seconds
             const interval = setInterval(() => {
                 loadMessages(selectedChatId, false);
-            }, 3000);
+            }, 4000);
 
             return () => clearInterval(interval);
         }
