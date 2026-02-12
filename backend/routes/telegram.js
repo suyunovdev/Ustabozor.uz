@@ -245,6 +245,62 @@ async function handleBotRegistration(chatId, telegramId, firstName, text, messag
         );
         return;
     }
+
+    // --- Profil tahrirlash step'lari ---
+
+    // Ism tahrirlash
+    if (state.step === 'edit_name') {
+        if (!text || text.trim().length < 2) {
+            await sendMessage(chatId, 'Ism kamida 2 ta harf bo\'lishi kerak. Qayta yozing:');
+            return;
+        }
+        const userSnap = await usersRef().where('telegramId', '==', telegramId).limit(1).get();
+        if (!userSnap.empty) {
+            await userSnap.docs[0].ref.update(withUpdatedAt({ name: text.trim() }));
+            registrationState.delete(telegramId);
+            await sendMessage(chatId, `Ism yangilandi: <b>${text.trim()}</b>\n\nProfilni ko'rish: /profile`);
+        }
+        return;
+    }
+
+    // Familiya tahrirlash
+    if (state.step === 'edit_surname') {
+        if (!text || text.trim().length < 2) {
+            await sendMessage(chatId, 'Familiya kamida 2 ta harf bo\'lishi kerak. Qayta yozing:');
+            return;
+        }
+        const userSnap = await usersRef().where('telegramId', '==', telegramId).limit(1).get();
+        if (!userSnap.empty) {
+            await userSnap.docs[0].ref.update(withUpdatedAt({ surname: text.trim() }));
+            registrationState.delete(telegramId);
+            await sendMessage(chatId, `Familiya yangilandi: <b>${text.trim()}</b>\n\nProfilni ko'rish: /profile`);
+        }
+        return;
+    }
+
+    // Telefon tahrirlash
+    if (state.step === 'edit_phone') {
+        let phone = '';
+        if (message.contact) {
+            phone = message.contact.phone_number;
+        } else {
+            phone = text.replace(/\s/g, '');
+            if (!phone.startsWith('+')) phone = '+' + phone;
+        }
+        if (phone.length < 9) {
+            await sendMessage(chatId, 'Telefon raqami noto\'g\'ri. Qayta yuboring:');
+            return;
+        }
+        const userSnap = await usersRef().where('telegramId', '==', telegramId).limit(1).get();
+        if (!userSnap.empty) {
+            await userSnap.docs[0].ref.update(withUpdatedAt({ phone }));
+            registrationState.delete(telegramId);
+            await sendMessage(chatId, `Telefon yangilandi: <b>${phone}</b>\n\nProfilni ko'rish: /profile`,
+                { remove_keyboard: true }
+            );
+        }
+        return;
+    }
 }
 
 async function finishBotRegistration(chatId, telegramId, from, data) {
@@ -406,14 +462,27 @@ router.post('/webhook', async (req, res) => {
                     });
                 } else {
                     const user = docToObj(userSnap.docs[0]);
-                    await sendMessage(chatId,
-                        `<b>Profilingiz</b>\n\n` +
+                    let profileMsg = `<b>Profilingiz</b>\n\n` +
                         `Ism: ${user.name} ${user.surname || ''}\n` +
                         `Rol: ${user.role === 'WORKER' ? 'Ishchi (Usta)' : 'Mijoz'}\n` +
                         `Reyting: ${user.rating || 5.0}/5\n` +
                         `Balans: ${(user.balance || 0).toLocaleString()} so'm\n` +
-                        `Telefon: ${user.phone || 'Ko\'rsatilmagan'}`
-                    );
+                        `Telefon: ${user.phone || 'Ko\'rsatilmagan'}`;
+
+                    if (user.role === 'WORKER' && user.skills && user.skills.length > 0) {
+                        profileMsg += `\nKo'nikmalar: ${user.skills.join(', ')}`;
+                    }
+
+                    const editButtons = [
+                        [{ text: "✏️ Ism", callback_data: 'edit_name' }, { text: "✏️ Familiya", callback_data: 'edit_surname' }],
+                        [{ text: "📞 Telefon", callback_data: 'edit_phone' }]
+                    ];
+                    if (user.role === 'WORKER') {
+                        editButtons.push([{ text: "🔧 Ko'nikmalar", callback_data: 'edit_skills' }]);
+                    }
+                    editButtons.push([{ text: "📱 Ilovada to'liq tahrirlash", web_app: { url: webAppUrl } }]);
+
+                    await sendMessage(chatId, profileMsg, { inline_keyboard: editButtons });
                 }
             }
         }
@@ -524,6 +593,93 @@ router.post('/webhook', async (req, res) => {
                     `Bekor qilish: /cancel`,
                     { remove_keyboard: true }
                 );
+
+            // --- Profil tahrirlash ---
+            } else if (data === 'edit_name') {
+                registrationState.set(telegramId, { step: 'edit_name', data: {} });
+                await sendMessage(chatId, 'Yangi ismingizni yozing:\n\nBekor qilish: /cancel');
+
+            } else if (data === 'edit_surname') {
+                registrationState.set(telegramId, { step: 'edit_surname', data: {} });
+                await sendMessage(chatId, 'Yangi familiyangizni yozing:\n\nBekor qilish: /cancel');
+
+            } else if (data === 'edit_phone') {
+                registrationState.set(telegramId, { step: 'edit_phone', data: {} });
+                await sendMessage(chatId,
+                    'Yangi telefon raqamingizni yuboring:\n(Masalan: +998901234567)\n\nBekor qilish: /cancel',
+                    {
+                        keyboard: [[{ text: '📞 Kontakt ulashish', request_contact: true }]],
+                        resize_keyboard: true,
+                        one_time_keyboard: true
+                    }
+                );
+
+            } else if (data === 'edit_skills') {
+                // Hozirgi ko'nikmalarni olish
+                const userSnap = await usersRef().where('telegramId', '==', telegramId).limit(1).get();
+                const currentSkills = userSnap.empty ? [] : (docToObj(userSnap.docs[0]).skills || []);
+
+                registrationState.set(telegramId, { step: 'edit_skills', data: { skills: [...currentSkills] } });
+
+                const keyboard = SKILLS_LIST.map(s => [{
+                    text: `${currentSkills.includes(s) ? '✅' : '⬜'} ${s}`,
+                    callback_data: `editskill_${s}`
+                }]);
+                keyboard.push([{ text: `✅ Saqlash (${currentSkills.length} ta)`, callback_data: 'editskills_done' }]);
+
+                await sendMessage(chatId,
+                    `<b>Ko'nikmalarni tahrirlash</b>\n\nTanlangan: ${currentSkills.length > 0 ? currentSkills.join(', ') : 'hali tanlanmagan'}`,
+                    { inline_keyboard: keyboard }
+                );
+
+            } else if (data.startsWith('editskill_')) {
+                const state = registrationState.get(telegramId);
+                if (!state || state.step !== 'edit_skills') return;
+
+                const skill = data.replace('editskill_', '');
+                if (!state.data.skills) state.data.skills = [];
+
+                if (state.data.skills.includes(skill)) {
+                    state.data.skills = state.data.skills.filter(s => s !== skill);
+                } else {
+                    state.data.skills.push(skill);
+                }
+                registrationState.set(telegramId, state);
+
+                const keyboard = SKILLS_LIST.map(s => [{
+                    text: `${state.data.skills.includes(s) ? '✅' : '⬜'} ${s}`,
+                    callback_data: `editskill_${s}`
+                }]);
+                keyboard.push([{ text: `✅ Saqlash (${state.data.skills.length} ta)`, callback_data: 'editskills_done' }]);
+
+                const msgId = update.callback_query.message?.message_id;
+                await fetch(`${TELEGRAM_API_URL}/editMessageText`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        message_id: msgId,
+                        text: `<b>Ko'nikmalarni tahrirlash</b>\n\nTanlangan: ${state.data.skills.length > 0 ? state.data.skills.join(', ') : 'hali tanlanmagan'}`,
+                        parse_mode: 'HTML',
+                        reply_markup: { inline_keyboard: keyboard }
+                    })
+                });
+
+            } else if (data === 'editskills_done') {
+                const state = registrationState.get(telegramId);
+                if (!state || state.step !== 'edit_skills') return;
+
+                const userSnap = await usersRef().where('telegramId', '==', telegramId).limit(1).get();
+                if (!userSnap.empty) {
+                    await userSnap.docs[0].ref.update(withUpdatedAt({ skills: state.data.skills || [] }));
+                    registrationState.delete(telegramId);
+                    await sendMessage(chatId,
+                        `Ko'nikmalar yangilandi: <b>${(state.data.skills || []).join(', ') || 'Bo\'sh'}</b>\n\nProfilni ko'rish: /profile`
+                    );
+                } else {
+                    registrationState.delete(telegramId);
+                    await sendMessage(chatId, 'Xatolik. Qayta urinib ko\'ring: /profile');
+                }
             }
         }
 
