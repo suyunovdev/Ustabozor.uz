@@ -77,6 +77,34 @@ router.get('/', async (req, res) => {
         cache.set(cacheKey, chatsWithDetails, { ttl: 3000 });
         console.log(`Chats loaded from DB in ${Date.now() - startTime}ms for user ${userId}`);
         res.json(chatsWithDetails);
+
+        // Background: Mark SENT messages from others as DELIVERED
+        // (qurilmaga yetdi = DELIVERED, WhatsApp mantiqiga mos)
+        const chatIds = chats.map(c => c.id || c._id);
+        if (chatIds.length > 0) {
+            Promise.all(chatIds.map(async (cid) => {
+                try {
+                    const msgSnap = await messagesRef()
+                        .where('chatId', '==', cid)
+                        .where('status', '==', 'SENT')
+                        .get();
+                    if (!msgSnap.empty) {
+                        const batch = getDb().batch();
+                        let count = 0;
+                        msgSnap.docs.forEach(doc => {
+                            if (doc.data().senderId !== userId) {
+                                batch.update(doc.ref, { status: 'DELIVERED' });
+                                count++;
+                            }
+                        });
+                        if (count > 0) {
+                            await batch.commit();
+                            cache.delete(`messages:${cid}`);
+                        }
+                    }
+                } catch (e) { /* ignore background errors */ }
+            })).catch(() => {});
+        }
     } catch (error) {
         console.error('Chat GET error:', error);
         res.status(500).json({ message: error.message });

@@ -351,6 +351,18 @@ export const ApiService = {
         }
     },
 
+    markMessagesDelivered: async (chatId: string, userId: string): Promise<boolean> => {
+        try {
+            await request('/messages/deliver', {
+                method: 'PUT',
+                body: JSON.stringify({ chatId, userId })
+            });
+            return true;
+        } catch (error) {
+            return false;
+        }
+    },
+
     // --- NOTIFICATIONS ---
     getNotifications: async (userId: string): Promise<Notification[]> => {
         try {

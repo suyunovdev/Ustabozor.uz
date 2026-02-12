@@ -14,7 +14,7 @@ interface MessageBubbleProps {
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({
+export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   message,
   isOwn,
   senderName,
@@ -39,13 +39,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     switch (message.status) {
       case MessageStatus.SENT:
-        return <Check size={12} className="text-gray-400" />;
+      case 'SENT':
+        return <Check size={14} className="text-gray-400" />;
       case MessageStatus.DELIVERED:
-        return <CheckCheck size={12} className="text-gray-400" />;
+      case 'DELIVERED':
+        return <CheckCheck size={14} className="text-gray-400" />;
       case MessageStatus.READ:
-        return <CheckCheck size={12} className="text-blue-500" />;
+      case 'READ':
+        return <CheckCheck size={14} className="text-blue-400" />;
       default:
-        return <Check size={12} className="text-gray-400" />;
+        return <Check size={14} className="text-gray-400" />;
     }
   };
 
@@ -284,4 +287,4 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       </div>
     </div>
   );
-};
+});

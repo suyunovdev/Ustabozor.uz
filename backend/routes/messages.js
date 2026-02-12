@@ -132,6 +132,44 @@ router.post('/', async (req, res) => {
     }
 });
 
+// Mark messages as delivered (SENT → DELIVERED)
+router.put('/deliver', async (req, res) => {
+    try {
+        const { chatId, userId } = req.body;
+        if (!chatId || !userId) {
+            return res.status(400).json({ message: 'chatId and userId are required' });
+        }
+
+        const snapshot = await messagesRef()
+            .where('chatId', '==', chatId)
+            .where('status', '==', 'SENT')
+            .get();
+
+        if (snapshot.empty) {
+            return res.json({ updated: 0 });
+        }
+
+        const batch = getDb().batch();
+        let count = 0;
+        snapshot.docs.forEach(doc => {
+            if (doc.data().senderId !== userId) {
+                batch.update(doc.ref, { status: 'DELIVERED' });
+                count++;
+            }
+        });
+
+        if (count > 0) {
+            await batch.commit();
+            cache.delete(`messages:${chatId}`);
+        }
+
+        res.json({ updated: count });
+    } catch (error) {
+        console.error('Message DELIVER error:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Delete message
 router.delete('/:messageId', async (req, res) => {
     try {

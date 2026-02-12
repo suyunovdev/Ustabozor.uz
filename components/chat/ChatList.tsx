@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Chat, User } from '../../types';
-import { MessageCircle, Search, X, Wallet, TrendingUp } from 'lucide-react';
+import { MessageCircle, Search, X, TrendingUp, Check, CheckCheck } from 'lucide-react';
 
 interface ChatListProps {
   chats: Chat[];
@@ -216,12 +216,28 @@ export const ChatList: React.FC<ChatListProps> = ({
                     </div>
 
                     <div className="flex items-center justify-between gap-2">
-                      <span className={`text-sm truncate ${hasUnread
-                        ? 'font-medium text-gray-800 dark:text-gray-200'
-                        : 'text-gray-500 dark:text-gray-400'
-                        }`}>
-                        {chat.lastMessage?.content || 'Xabar yo\'q'}
-                      </span>
+                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                        {/* Check marks for own messages */}
+                        {chat.lastMessage && (() => {
+                          const msg = chat.lastMessage as any;
+                          const senderId = typeof msg.senderId === 'object'
+                            ? (msg.senderId?._id || msg.senderId?.id)
+                            : msg.senderId;
+                          if (senderId === currentUserId) {
+                            const status = msg.status || 'SENT';
+                            if (status === 'READ') return <CheckCheck size={14} className="flex-shrink-0 text-blue-400" />;
+                            if (status === 'DELIVERED') return <CheckCheck size={14} className="flex-shrink-0 text-gray-400" />;
+                            return <Check size={14} className="flex-shrink-0 text-gray-400" />;
+                          }
+                          return null;
+                        })()}
+                        <span className={`text-sm truncate ${hasUnread
+                          ? 'font-medium text-gray-800 dark:text-gray-200'
+                          : 'text-gray-500 dark:text-gray-400'
+                          }`}>
+                          {chat.lastMessage?.content || 'Xabar yo\'q'}
+                        </span>
+                      </div>
                       {hasUnread && (
                         <span className="flex-shrink-0 min-w-[22px] h-[22px] px-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full text-[11px] font-bold flex items-center justify-center shadow-sm">
                           {chat.unreadCount}

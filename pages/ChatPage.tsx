@@ -56,6 +56,8 @@ export const ChatPage: React.FC = () => {
     const prevUnreadRef = useRef(0);
     const isFirstLoadRef = useRef(true);
     const abortControllerRef = useRef<AbortController | null>(null);
+    const prevMessagesJsonRef = useRef<string>('');
+    const prevChatsJsonRef = useRef<string>('');
 
     const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
     const currentUser: User | null = useMemo(() =>
@@ -141,7 +143,15 @@ export const ChatPage: React.FC = () => {
             });
 
             setUsers(userMap);
-            setChats(sortedChats);
+
+            // Smart diff: only update chats if data changed
+            const chatsJson = JSON.stringify(sortedChats.map(c =>
+                `${c.id}:${c.unreadCount}:${(c.lastMessage as any)?.id || ''}:${(c.lastMessage as any)?.status || ''}`
+            ));
+            if (chatsJson !== prevChatsJsonRef.current) {
+                prevChatsJsonRef.current = chatsJson;
+                setChats(sortedChats);
+            }
         } catch (error: any) {
             if (error.name !== 'AbortError') {
                 console.error('Error loading chats:', error);
@@ -151,14 +161,30 @@ export const ChatPage: React.FC = () => {
         }
     }, [currentUser]);
 
-    // Load messages for selected chat with loading state
+    // Load messages with smart diff — skip re-render if no changes
     const loadMessages = useCallback(async (chatId: string, showLoading = false) => {
         try {
             if (showLoading) setMessagesLoading(true);
-            const startTime = performance.now();
             const chatMessages = await ChatService.getChatMessages(chatId);
-            console.log(`💬 Messages loaded in ${(performance.now() - startTime).toFixed(0)}ms`);
-            setMessages(chatMessages);
+
+            // Smart diff: only update if data actually changed
+            const newJson = JSON.stringify(chatMessages.map(m => `${m.id}:${m.status}`));
+            if (newJson !== prevMessagesJsonRef.current) {
+                prevMessagesJsonRef.current = newJson;
+                // Filter out temp messages if real ones arrived
+                setMessages(prev => {
+                    const realIds = new Set(chatMessages.map(m => m.id));
+                    const tempMessages = prev.filter(m => m.id.startsWith('temp-'));
+                    // Keep temp messages only if no real message matches their content
+                    const remainingTemp = tempMessages.filter(temp =>
+                        !chatMessages.some(real =>
+                            real.content === temp.content &&
+                            Math.abs(new Date(real.timestamp).getTime() - new Date(temp.timestamp).getTime()) < 10000
+                        )
+                    );
+                    return [...chatMessages, ...remainingTemp];
+                });
+            }
         } catch (error) {
             console.error('Error loading messages:', error);
         } finally {
@@ -229,7 +255,8 @@ export const ChatPage: React.FC = () => {
             // Send to server
             await ChatService.sendMessage(selectedChatId, currentUser.id, content, attachments);
 
-            // Load actual messages
+            // Reset diff cache to force update, then load actual messages
+            prevMessagesJsonRef.current = '';
             await loadMessages(selectedChatId, false);
         } catch (error) {
             console.error('Error sending message:', error);

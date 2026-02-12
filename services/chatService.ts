@@ -22,6 +22,10 @@ export const ChatService = {
         return await ApiService.markChatAsRead(chatId, userId);
     },
 
+    markAsDelivered: async (chatId: string, userId: string): Promise<boolean> => {
+        return await ApiService.markMessagesDelivered(chatId, userId);
+    },
+
     deleteMessage: async (messageId: string): Promise<boolean> => {
         return await ApiService.deleteMessage(messageId);
     },
