@@ -73,6 +73,11 @@ export const CreateOrder = () => {
       return;
     }
 
+    if (currentUser.isBanned) {
+      alert("Hisobingiz bloklangan. Buyurtma berish mumkin emas.");
+      return;
+    }
+
     // Use selected location from map or saved location
     const locationToUse = selectedLocation || getSavedLocation();
 

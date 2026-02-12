@@ -325,6 +325,10 @@ export const JobFeed = () => {
       alert("Iltimos, avval tizimga kiring!");
       return;
     }
+    if (currentUser?.isBanned) {
+      alert("Hisobingiz bloklangan. Ish qabul qilish mumkin emas.");
+      return;
+    }
     if (!isOnline) {
       alert("Ish qabul qilish uchun avval 'Online' rejimiga o'ting!");
       return;

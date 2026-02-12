@@ -23,6 +23,7 @@ import { ApiService } from './services/api';
 import { requestUserLocation, getSavedLocation, isLocationStale, hasValidSavedLocation, LocationData } from './services/locationService';
 import { initTelegramWebApp, isTelegramWebApp, getTelegramUser, getTelegramInitData } from './services/telegram';
 import { LocationGate } from './components/LocationGate';
+import { BannedScreen } from './components/BannedScreen';
 
 const App = () => {
   const [user, setUser] = useState<User | null>(() => {
@@ -106,6 +107,25 @@ const App = () => {
       localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
+
+  // Ban statusini tekshirish — har safar app ochilganda serverdan yangilash
+  useEffect(() => {
+    if (!user) return;
+    ApiService.getUserById(user.id).then((freshUser) => {
+      if (freshUser && freshUser.isBanned) {
+        const updatedUser = { ...user, isBanned: true, blockReason: freshUser.blockReason, blockedUntil: freshUser.blockedUntil, blockedAt: freshUser.blockedAt };
+        setUser(updatedUser);
+        sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      } else if (freshUser && user.isBanned && !freshUser.isBanned) {
+        // Unban bo'lgan bo'lsa — yangilash
+        const updatedUser = { ...user, isBanned: false, blockReason: undefined, blockedUntil: undefined, blockedAt: undefined };
+        setUser(updatedUser);
+        sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      }
+    }).catch(() => {});
+  }, [user?.id]);
 
   // Fonda joylashuvni yangilash — faqat gate o'tilgandan keyin
   useEffect(() => {
@@ -235,8 +255,15 @@ const App = () => {
             path="*"
             element={
               <Layout user={user} logout={handleLogout} toggleTheme={toggleTheme} isDarkMode={isDarkMode}>
-                {/* Location Gate — faqat customer/worker uchun */}
-                {!locationReady && role !== UserRole.ADMIN ? (
+                {/* Banned Screen — bloklangan foydalanuvchi uchun */}
+                {user.isBanned && role !== UserRole.ADMIN ? (
+                  <BannedScreen
+                    reason={user.blockReason}
+                    blockedUntil={user.blockedUntil}
+                    blockedAt={user.blockedAt}
+                    onLogout={handleLogout}
+                  />
+                ) : !locationReady && role !== UserRole.ADMIN ? (
                   <LocationGate onLocationGranted={handleLocationGranted} />
                 ) : (
                   <Routes>
