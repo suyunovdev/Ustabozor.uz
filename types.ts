@@ -30,8 +30,12 @@ export interface User {
   avatar?: string;
   balance: number;
   rating?: number;
-  ratingCount?: number; // O'rtacha reytingni hisoblash uchun
-  isOnline?: boolean; // Foydalanuvchi onlayn yoki yo'qligini belgilaydi
+  ratingCount?: number;
+  isOnline?: boolean;
+  skills?: string[];
+  completedJobs?: number;
+  hourlyRate?: number;
+  createdAt?: string;
 }
 
 export interface WorkerProfile extends User {

@@ -86,12 +86,57 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
     }
   };
 
-  const achievements = [
-    { id: 1, label: "Yangi A'zo", icon: UserIcon, color: "text-blue-500 bg-blue-100 dark:bg-blue-900/30" },
-    { id: 2, label: "Verifikatsiya", icon: ShieldCheck, color: "text-green-500 bg-green-100 dark:bg-green-900/30" },
-    { id: 3, label: "5 Yulduz", icon: Star, color: "text-yellow-500 bg-yellow-100 dark:bg-yellow-900/30" },
-    { id: 4, label: "Tezkor", icon: Zap, color: "text-purple-500 bg-purple-100 dark:bg-purple-900/30" },
-  ];
+  // Profil to'ldirilganligini dinamik hisoblash
+  const profileCompletion = (() => {
+    const fields = [
+      { filled: !!user.name, weight: 15 },
+      { filled: !!user.surname, weight: 10 },
+      { filled: !!user.phone, weight: 15 },
+      { filled: !!user.email, weight: 15 },
+      { filled: !!(user.avatar && user.avatar.startsWith('http') && !user.avatar.includes('ui-avatars.com')), weight: 20 },
+      { filled: (user.rating || 0) > 0 && (user.ratingCount || 0) > 0, weight: 10 },
+      { filled: user.role === UserRole.WORKER ? (user.skills || []).length > 0 : true, weight: 10 },
+      { filled: user.role === UserRole.WORKER ? (user.hourlyRate || 0) > 0 : true, weight: 5 },
+    ];
+    return fields.reduce((sum, f) => sum + (f.filled ? f.weight : 0), 0);
+  })();
+
+  // A'zo bo'lgan yil
+  const joinYear = user.createdAt ? new Date(user.createdAt).getFullYear() : new Date().getFullYear();
+
+  // Haqiqiy ishlar soni
+  const jobsCount = user.role === UserRole.WORKER
+    ? (user.completedJobs || 0)
+    : platformStats.totalOrders;
+
+  // Dinamik achievements
+  const achievements = (() => {
+    const list = [
+      {
+        id: 1, label: "A'zo", icon: UserIcon,
+        color: "text-blue-500 bg-blue-100 dark:bg-blue-900/30",
+        earned: true
+      },
+      {
+        id: 2, label: "To'liq profil", icon: ShieldCheck,
+        color: "text-green-500 bg-green-100 dark:bg-green-900/30",
+        earned: profileCompletion >= 90
+      },
+      {
+        id: 3, label: "5 Yulduz", icon: Star,
+        color: "text-yellow-500 bg-yellow-100 dark:bg-yellow-900/30",
+        earned: (user.rating || 0) >= 4.5 && (user.ratingCount || 0) > 0
+      },
+      {
+        id: 4, label: user.role === UserRole.WORKER ? "10+ ish" : "10+ buyurtma", icon: Zap,
+        color: "text-purple-500 bg-purple-100 dark:bg-purple-900/30",
+        earned: user.role === UserRole.WORKER
+          ? (user.completedJobs || 0) >= 10
+          : platformStats.totalOrders >= 10
+      },
+    ];
+    return list;
+  })();
 
   const StatCard = ({ label, value, icon: Icon, color, delay, subtext, trend, onClick }: any) => {
     const bgColor = color === 'text-green-600' ? 'bg-emerald-500' :
@@ -234,10 +279,17 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
               <div className="mt-4 w-full max-w-[200px] mx-auto">
                 <div className="flex justify-between text-[10px] uppercase font-bold text-gray-400 mb-1">
                   <span>Profil to'ldirilganligi</span>
-                  <span>85%</span>
+                  <span className={profileCompletion >= 90 ? 'text-green-500' : profileCompletion >= 60 ? 'text-blue-500' : 'text-orange-500'}>{profileCompletion}%</span>
                 </div>
                 <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 w-[85%] rounded-full"></div>
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      profileCompletion >= 90 ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                      : profileCompletion >= 60 ? 'bg-gradient-to-r from-blue-500 to-purple-500'
+                      : 'bg-gradient-to-r from-orange-500 to-yellow-500'
+                    }`}
+                    style={{ width: `${profileCompletion}%` }}
+                  ></div>
                 </div>
               </div>
 
@@ -256,16 +308,16 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
                   <Star size={12} className="fill-current" /> {user.rating || '5.0'}
                 </span>
                 {user.role === UserRole.WORKER && (
-                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${(user as any).isOnline
+                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${user.isOnline
                     ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                     }`}>
-                    <span className={`w-2 h-2 rounded-full ${(user as any).isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
-                    {(user as any).isOnline ? 'Online' : 'Offline'}
+                    <span className={`w-2 h-2 rounded-full ${user.isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
+                    {user.isOnline ? 'Online' : 'Offline'}
                   </span>
                 )}
                 <span className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs font-bold flex items-center gap-1">
-                  <Calendar size={12} /> 2024
+                  <Calendar size={12} /> {joinYear}
                 </span>
               </div>
             </div>
@@ -294,7 +346,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
         />
         <StatCard
           label="Ishlar"
-          value={user.role === UserRole.WORKER ? '124' : '15'}
+          value={jobsCount}
           icon={Briefcase}
           color="text-blue-600"
           delay={300}
@@ -346,13 +398,18 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
           <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
             <Award size={16} className="text-yellow-500" /> Yutuqlar
           </h3>
-          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Barchasi</span>
+          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">{achievements.filter(a => a.earned).length}/{achievements.length}</span>
         </div>
         <div className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide">
           {achievements.map((ach) => (
-            <div key={ach.id} className="flex-shrink-0 flex flex-col items-center space-y-2">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center ${ach.color} shadow-sm`}>
+            <div key={ach.id} className={`flex-shrink-0 flex flex-col items-center space-y-2 ${!ach.earned ? 'opacity-40 grayscale' : ''}`}>
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center ${ach.color} shadow-sm relative`}>
                 <ach.icon size={24} />
+                {ach.earned && (
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900">
+                    <CheckCircle2 size={10} className="text-white" />
+                  </div>
+                )}
               </div>
               <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{ach.label}</span>
             </div>
@@ -375,9 +432,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
           <div>
             <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 px-2">Ish holati</h3>
             <MenuItem
-              icon={(user as any).isOnline ? Wifi : WifiOff}
-              label={(user as any).isOnline ? 'Ish qabul qilmoqda' : 'Ish qabul qilmayapti'}
-              subLabel={(user as any).isOnline ? 'Online - ishlar sizga ko\'rsatiladi' : "Offline - ishlar sizga ko'rsatilmaydi"}
+              icon={user.isOnline ? Wifi : WifiOff}
+              label={user.isOnline ? 'Ish qabul qilmoqda' : 'Ish qabul qilmayapti'}
+              subLabel={user.isOnline ? 'Online - ishlar sizga ko\'rsatiladi' : "Offline - ishlar sizga ko'rsatilmaydi"}
               onClick={async () => {
                 const updated = await ApiService.toggleOnlineStatus(user.id);
                 if (updated) {
@@ -416,7 +473,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
           <a href="#" className="text-gray-400 hover:text-blue-600 transition-colors"><Globe size={20} /></a>
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-600 font-medium">IshTop Platformasi</p>
-        <p className="text-[10px] text-gray-300 dark:text-gray-700 mt-1">v1.2.0 • Build 2024</p>
+        <p className="text-[10px] text-gray-300 dark:text-gray-700 mt-1">v1.3.0 • Build {new Date().getFullYear()}</p>
       </div>
 
       {/* Logout Confirmation Modal */}
