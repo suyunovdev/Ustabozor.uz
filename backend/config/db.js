@@ -16,7 +16,7 @@ const initializeFirebase = () => {
             serviceAccount = require(path.resolve(__dirname, '..', serviceAccountPath));
         }
 
-        const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+        const storageBucket = process.env.FIREBASE_STORAGE_BUCKET?.trim();
 
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
