@@ -75,15 +75,18 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
         try {
             if (selectedFile) {
                 const data = new FormData();
-                // Append all fields to FormData
-                Object.keys(formData).forEach(key => {
+                // Faqat tahrir qilinadigan fieldlarni yuborish
+                const editableFields = ['name', 'surname', 'phone', 'email', 'hourlyRate'];
+                editableFields.forEach(key => {
                     const value = formData[key as keyof WorkerProfile];
-                    if (key === 'skills' && Array.isArray(value)) {
-                        data.append(key, JSON.stringify(value));
-                    } else if (value !== undefined && value !== null && key !== 'avatar') {
+                    if (value !== undefined && value !== null) {
                         data.append(key, String(value));
                     }
                 });
+                // Skills array
+                if (formData.skills && Array.isArray(formData.skills)) {
+                    data.append('skills', JSON.stringify(formData.skills));
+                }
                 data.append('avatar', selectedFile);
                 await onSave(data);
             } else {

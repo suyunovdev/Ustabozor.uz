@@ -45,11 +45,24 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
     try {
         const updatedData = { ...req.body };
 
+        // Xavfsizlik: client o'zgartirmasligi kerak bo'lgan fieldlarni olib tashlash
+        delete updatedData.id;
+        delete updatedData._id;
+        delete updatedData.password;
+        delete updatedData.role;
+        delete updatedData.createdAt;
+        delete updatedData.balance;
+        delete updatedData.rating;
+        delete updatedData.ratingCount;
+        delete updatedData.completedJobs;
+
         // Convert numeric strings to numbers
         if (updatedData.hourlyRate) updatedData.hourlyRate = Number(updatedData.hourlyRate);
-        if (updatedData.balance) updatedData.balance = Number(updatedData.balance);
-        if (updatedData.rating) updatedData.rating = Number(updatedData.rating);
-        if (updatedData.ratingCount) updatedData.ratingCount = Number(updatedData.ratingCount);
+
+        // Convert boolean strings
+        if (typeof updatedData.isOnline === 'string') {
+            updatedData.isOnline = updatedData.isOnline === 'true';
+        }
 
         // Handle location object
         if (updatedData.location) {

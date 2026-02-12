@@ -17,7 +17,11 @@ const transformUser = (user: any): User => {
         balance: user.balance || 0,
         rating: user.rating,
         ratingCount: user.ratingCount,
-        isOnline: user.isOnline || false
+        isOnline: user.isOnline || false,
+        skills: user.skills || [],
+        completedJobs: user.completedJobs || 0,
+        hourlyRate: user.hourlyRate || 0,
+        createdAt: user.createdAt
     };
 };
 
