@@ -86,9 +86,9 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
         if (req.file) {
             const bucket = getBucket();
             if (!bucket) {
-                return res.status(500).json({ message: 'Firebase Storage sozlanmagan. FIREBASE_STORAGE_BUCKET env variable tekshiring.' });
+                return res.status(500).json({ message: 'Firebase Storage sozlanmagan.' });
             }
-            if (bucket) {
+            try {
                 const token = crypto.randomUUID();
                 const fileName = `uploads/avatars/${Date.now()}-${req.file.originalname}`;
                 const file = bucket.file(fileName);
@@ -101,6 +101,10 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
                     }
                 });
                 updatedData.avatar = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
+                console.log('Avatar uploaded:', updatedData.avatar);
+            } catch (uploadError) {
+                console.error('Avatar upload error:', uploadError.message);
+                return res.status(500).json({ message: 'Avatar yuklashda xato: ' + uploadError.message });
             }
         }
 

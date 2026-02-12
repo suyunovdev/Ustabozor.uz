@@ -41,6 +41,21 @@ app.use('/api/upload', require('./routes/upload'));
 const telegramRoutes = require('./routes/telegram');
 app.use('/api/telegram', telegramRoutes);
 
+// Storage test endpoint
+app.get('/api/test-storage', async (req, res) => {
+    const { getBucket } = require('./config/db');
+    const bucket = getBucket();
+    if (!bucket) {
+        return res.json({ ok: false, error: 'Bucket is null', env: process.env.FIREBASE_STORAGE_BUCKET ? 'SET' : 'NOT SET' });
+    }
+    try {
+        const [exists] = await bucket.exists();
+        res.json({ ok: exists, bucket: bucket.name, exists });
+    } catch (e) {
+        res.json({ ok: false, bucket: bucket.name, error: e.message });
+    }
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

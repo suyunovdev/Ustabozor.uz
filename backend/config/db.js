@@ -17,26 +17,34 @@ const initializeFirebase = () => {
         }
 
         const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
-        if (!storageBucket) {
-            console.warn('WARNING: FIREBASE_STORAGE_BUCKET env variable is not set! File uploads will not work.');
-        }
 
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
-            storageBucket: storageBucket
+            storageBucket: storageBucket || undefined
         });
 
         db = getFirestore(admin.app(), 'default');
-        bucket = storageBucket ? admin.storage().bucket() : null;
+
+        // Bucket ni aniq nom bilan yaratish
+        if (storageBucket) {
+            try {
+                bucket = admin.storage().bucket(storageBucket);
+                console.log('Storage bucket initialized:', storageBucket);
+            } catch (e) {
+                console.error('Storage bucket init error:', e.message);
+                bucket = null;
+            }
+        } else {
+            console.warn('WARNING: FIREBASE_STORAGE_BUCKET env variable is not set! File uploads will not work.');
+            bucket = null;
+        }
 
         db.settings({ ignoreUndefinedProperties: true, preferRest: true });
 
         console.log('Firebase initialized successfully');
-        console.log('Storage bucket:', storageBucket || 'NOT SET');
     } catch (error) {
         console.error(`Firebase initialization error: ${error.message}`);
         console.log('Server davom etmoqda Firebase\'siz...');
-        console.log('serviceAccountKey.json faylini backend/config/ papkasiga qo\'ying');
     }
 };
 
