@@ -16,17 +16,23 @@ const initializeFirebase = () => {
             serviceAccount = require(path.resolve(__dirname, '..', serviceAccountPath));
         }
 
+        const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+        if (!storageBucket) {
+            console.warn('WARNING: FIREBASE_STORAGE_BUCKET env variable is not set! File uploads will not work.');
+        }
+
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
-            storageBucket: process.env.FIREBASE_STORAGE_BUCKET
+            storageBucket: storageBucket
         });
 
         db = getFirestore(admin.app(), 'default');
-        bucket = admin.storage().bucket();
+        bucket = storageBucket ? admin.storage().bucket() : null;
 
         db.settings({ ignoreUndefinedProperties: true, preferRest: true });
 
         console.log('Firebase initialized successfully');
+        console.log('Storage bucket:', storageBucket || 'NOT SET');
     } catch (error) {
         console.error(`Firebase initialization error: ${error.message}`);
         console.log('Server davom etmoqda Firebase\'siz...');

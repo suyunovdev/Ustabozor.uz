@@ -85,6 +85,9 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
         // Upload avatar to Firebase Storage
         if (req.file) {
             const bucket = getBucket();
+            if (!bucket) {
+                return res.status(500).json({ message: 'Firebase Storage sozlanmagan. FIREBASE_STORAGE_BUCKET env variable tekshiring.' });
+            }
             if (bucket) {
                 const token = crypto.randomUUID();
                 const fileName = `uploads/avatars/${Date.now()}-${req.file.originalname}`;
