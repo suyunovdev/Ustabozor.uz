@@ -78,28 +78,88 @@ async function handleBotRegistration(chatId, telegramId, firstName, text, messag
     const state = registrationState.get(telegramId);
     if (!state) return;
 
-    // Telefon raqami qadami
+    // 1. Ism qadami
+    if (state.step === 'name') {
+        if (!text || text.trim().length < 2) {
+            await sendMessage(chatId, 'Ism kamida 2 ta harf bo\'lishi kerak. Qayta yozing:');
+            return;
+        }
+        state.data.name = text.trim();
+        state.step = 'surname';
+        registrationState.set(telegramId, state);
+        await sendMessage(chatId, 'Familiyangizni yozing:');
+        return;
+    }
+
+    // 2. Familiya qadami
+    if (state.step === 'surname') {
+        if (!text || text.trim().length < 2) {
+            await sendMessage(chatId, 'Familiya kamida 2 ta harf bo\'lishi kerak. Qayta yozing:');
+            return;
+        }
+        state.data.surname = text.trim();
+        state.step = 'email';
+        registrationState.set(telegramId, state);
+        await sendMessage(chatId, 'Email manzilingizni yozing:\n(Masalan: isming@gmail.com)');
+        return;
+    }
+
+    // 3. Email qadami
+    if (state.step === 'email') {
+        const email = text.trim().toLowerCase();
+        if (!email.includes('@') || !email.includes('.')) {
+            await sendMessage(chatId, 'Email formati noto\'g\'ri. Qayta yozing:\n(Masalan: isming@gmail.com)');
+            return;
+        }
+        // Email bandligini tekshirish
+        const emailExists = await usersRef().where('email', '==', email).limit(1).get();
+        if (!emailExists.empty) {
+            await sendMessage(chatId, 'Bu email allaqachon ro\'yxatdan o\'tgan.\nBoshqa email yozing yoki /cancel bosib, "Mavjud akkauntni ulash" ni tanlang.');
+            return;
+        }
+        state.data.email = email;
+        state.step = 'password';
+        registrationState.set(telegramId, state);
+        await sendMessage(chatId, 'Parol yarating:\n(Kamida 4 ta belgi)');
+        return;
+    }
+
+    // 4. Parol qadami
+    if (state.step === 'password') {
+        if (!text || text.trim().length < 4) {
+            await sendMessage(chatId, 'Parol kamida 4 ta belgi bo\'lishi kerak. Qayta yozing:');
+            return;
+        }
+        state.data.password = text.trim();
+        state.step = 'phone';
+        registrationState.set(telegramId, state);
+        await sendMessage(chatId,
+            'Telefon raqamingizni yuboring:\n(Masalan: +998901234567)\n\nYoki tugmani bosing:',
+            {
+                keyboard: [[{ text: '📞 Kontakt ulashish', request_contact: true }]],
+                resize_keyboard: true,
+                one_time_keyboard: true
+            }
+        );
+        return;
+    }
+
+    // 5. Telefon raqami qadami
     if (state.step === 'phone') {
         let phone = '';
-
-        // Kontakt ulashish orqali
         if (message.contact) {
             phone = message.contact.phone_number;
         } else {
-            // Matn orqali
             phone = text.replace(/\s/g, '');
             if (!phone.startsWith('+')) phone = '+' + phone;
         }
-
         if (phone.length < 9) {
             await sendMessage(chatId, 'Telefon raqami noto\'g\'ri. Qayta yuboring:');
             return;
         }
-
         state.data.phone = phone;
 
         if (state.data.role === 'WORKER') {
-            // Ishchi — ko'nikmalar tanlash
             state.step = 'skills';
             state.data.skills = [];
             registrationState.set(telegramId, state);
@@ -110,11 +170,18 @@ async function handleBotRegistration(chatId, telegramId, firstName, text, messag
             }]);
             keyboard.push([{ text: '✅ Tayyor (0 ta tanlandi)', callback_data: 'skills_done' }]);
 
-            await sendMessage(chatId,
-                `<b>Ko'nikmalaringiz</b>\n\nTanlangan: hali tanlanmagan`,
-                { inline_keyboard: keyboard }
-            );
-            // Remove reply keyboard
+            // Remove reply keyboard then show skills
+            await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: '<b>Ko\'nikmalaringiz</b>\n\nTanlangan: hali tanlanmagan',
+                    parse_mode: 'HTML',
+                    reply_markup: { inline_keyboard: keyboard }
+                })
+            });
+            // Remove contact keyboard
             await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -125,8 +192,8 @@ async function handleBotRegistration(chatId, telegramId, firstName, text, messag
                 })
             });
         } else {
-            // Mijoz — to'g'ridan-to'g'ri yaratish
-            await finishBotRegistration(chatId, telegramId, { first_name: firstName, id: telegramId }, state.data);
+            // Mijoz — yaratish
+            await finishBotRegistration(chatId, telegramId, { first_name: state.data.name, id: telegramId }, state.data);
         }
         return;
     }
@@ -194,11 +261,11 @@ async function finishBotRegistration(chatId, telegramId, from, data) {
     }
 
     const userData = {
-        name: from.first_name || '',
-        surname: from.last_name || '',
+        name: data.name || from.first_name || '',
+        surname: data.surname || from.last_name || '',
         phone: data.phone || '',
-        email: '',
-        password: '',
+        email: data.email || '',
+        password: data.password || '',
         telegramId: telegramId,
         telegramUsername: from.username || '',
         role: data.role || 'CUSTOMER',
@@ -218,8 +285,11 @@ async function finishBotRegistration(chatId, telegramId, from, data) {
     registrationState.delete(telegramId);
 
     const roleName = data.role === 'WORKER' ? 'Ishchi (Usta)' : 'Mijoz (Ish beruvchi)';
-    let msg = `Tabriklaymiz, <b>${from.first_name}</b>! 🎉\n\n` +
+    const displayName = data.name || from.first_name || '';
+    let msg = `Tabriklaymiz, <b>${displayName}</b>! 🎉\n\n` +
         `Siz muvaffaqiyatli ro'yxatdan o'tdingiz!\n\n` +
+        `Ism: <b>${displayName} ${data.surname || ''}</b>\n` +
+        `Email: <b>${data.email || ''}</b>\n` +
         `Rol: <b>${roleName}</b>\n` +
         `Telefon: ${data.phone}`;
 
@@ -385,19 +455,13 @@ router.post('/webhook', async (req, res) => {
             } else if (data === 'role_CUSTOMER' || data === 'role_WORKER') {
                 const role = data.replace('role_', '');
                 registrationState.set(telegramId, {
-                    step: 'phone',
+                    step: 'name',
                     data: { role }
                 });
                 await sendMessage(chatId,
                     `Rol: <b>${role === 'WORKER' ? 'Ishchi' : 'Mijoz'}</b>\n\n` +
-                    `Telefon raqamingizni yuboring:\n` +
-                    `(Masalan: +998901234567)\n\n` +
-                    `Yoki "Kontakt ulashish" tugmasini bosing:`,
-                    {
-                        keyboard: [[{ text: "📞 Kontakt ulashish", request_contact: true }]],
-                        resize_keyboard: true,
-                        one_time_keyboard: true
-                    }
+                    `Ismingizni yozing:`,
+                    { remove_keyboard: true }
                 );
 
             // Skills tanlash (WORKER uchun)

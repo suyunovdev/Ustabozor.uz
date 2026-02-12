@@ -65,19 +65,23 @@ const App = () => {
       return;
     }
 
-    // Agar allaqachon login bo'lgan bo'lsa, qayta auth qilmaslik
-    if (user) return;
-
+    // Telegram WebApp'da har doim server'dan auth qilish
+    // (bot orqali ro'yxatdan o'tgan bo'lsa, cached session eski bo'lishi mumkin)
     setTelegramLoading(true);
 
     ApiService.telegramAuth(initData)
       .then((result: any) => {
         if (result.user) {
           // Foydalanuvchi topildi — avtomatik login
+          // Eski cached session bilan bir xil bo'lsa ham, yangilash
           handleLogin(result.user);
           toast.success(`Xush kelibsiz, ${result.user.name}!`, { autoClose: 2000 });
-        } else if (result.needsRegistration) {
-          // Yangi foydalanuvchi — ro'yxatdan o'tish formasi
+        } else if (result.isNewUser) {
+          // Yangi foydalanuvchi — eski cached session'ni tozalash
+          sessionStorage.removeItem('currentUser');
+          localStorage.removeItem('currentUser');
+          setUser(null);
+          // Ro'yxatdan o'tish formasi
           setTelegramRegistrationData({ initData, tgUser });
           setShowTelegramRegister(true);
         }
