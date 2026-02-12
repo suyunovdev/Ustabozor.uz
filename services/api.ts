@@ -21,7 +21,11 @@ const transformUser = (user: any): User => {
         skills: user.skills || [],
         completedJobs: user.completedJobs || 0,
         hourlyRate: user.hourlyRate || 0,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        isBanned: user.isBanned || false,
+        blockReason: user.blockReason,
+        blockedUntil: user.blockedUntil,
+        blockedAt: user.blockedAt
     };
 };
 
@@ -448,6 +452,14 @@ export const ApiService = {
         } catch (error) {
             return false;
         }
+    },
+
+    // Admin ban/unban user
+    banUser: async (userId: string, data: { action: 'ban' | 'unban'; reason?: string; duration?: string }): Promise<any> => {
+        return await request(`/users/${userId}/ban`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
     },
 
     reportUser: async (reporterId: string, reportedUserId: string, reason: string): Promise<boolean> => {

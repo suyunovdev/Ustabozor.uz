@@ -159,7 +159,136 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// Block user
+// Admin ban/unban user
+router.post('/:id/ban', async (req, res) => {
+    try {
+        const { action, reason, duration } = req.body;
+        if (!action || !['ban', 'unban'].includes(action)) {
+            return res.status(400).json({ message: 'action "ban" yoki "unban" bo\'lishi kerak' });
+        }
+
+        const docRef = usersRef().doc(req.params.id);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'Foydalanuvchi topilmadi' });
+        }
+
+        const userData = doc.data();
+        const now = new Date();
+
+        if (action === 'ban') {
+            // Muddatni hisoblash
+            let blockedUntil = null;
+            let durationText = 'Doimiy';
+            if (duration && duration !== 'permanent') {
+                const durations = {
+                    '1h': { ms: 60 * 60 * 1000, text: '1 soat' },
+                    '24h': { ms: 24 * 60 * 60 * 1000, text: '24 soat' },
+                    '7d': { ms: 7 * 24 * 60 * 60 * 1000, text: '7 kun' },
+                    '30d': { ms: 30 * 24 * 60 * 60 * 1000, text: '30 kun' }
+                };
+                const d = durations[duration];
+                if (d) {
+                    blockedUntil = new Date(now.getTime() + d.ms).toISOString();
+                    durationText = d.text;
+                }
+            }
+
+            await docRef.update({
+                isBanned: true,
+                blockReason: reason || 'Sabab ko\'rsatilmagan',
+                blockedUntil: blockedUntil,
+                blockedAt: now.toISOString(),
+                isOnline: false,
+                updatedAt: FieldValue.serverTimestamp()
+            });
+
+            // Telegram xabar yuborish
+            if (userData.telegramId) {
+                try {
+                    const telegramRoutes = require('./telegram');
+                    if (telegramRoutes.sendTelegramMessage) {
+                        const msg = `⚠️ <b>Hisobingiz bloklandi</b>\n\n` +
+                            `📋 <b>Sabab:</b> ${reason || 'Ko\'rsatilmagan'}\n` +
+                            `⏰ <b>Muddat:</b> ${durationText}\n` +
+                            `📅 <b>Sana:</b> ${now.toLocaleDateString('uz-UZ')}\n\n` +
+                            `Agar noto'g'ri bloklangan deb hisoblasangiz, admin bilan bog'laning.`;
+                        await telegramRoutes.sendTelegramMessage(userData.telegramId, msg);
+                    }
+                } catch (e) {
+                    console.error('Telegram ban notification error:', e.message);
+                }
+            }
+
+            // In-app notification yaratish
+            try {
+                const { getDb } = require('../config/db');
+                const db = getDb();
+                await db.collection('notifications').add({
+                    userId: req.params.id,
+                    type: 'SYSTEM',
+                    title: 'Hisob bloklandi',
+                    message: `Sabab: ${reason || 'Ko\'rsatilmagan'}. Muddat: ${durationText}`,
+                    isRead: false,
+                    createdAt: FieldValue.serverTimestamp()
+                });
+            } catch (e) {
+                console.error('Notification create error:', e.message);
+            }
+
+            const updated = await docRef.get();
+            res.json({ success: true, message: 'Foydalanuvchi bloklandi', user: docToObj(updated) });
+
+        } else {
+            // Unban
+            await docRef.update({
+                isBanned: false,
+                blockReason: FieldValue.delete(),
+                blockedUntil: FieldValue.delete(),
+                blockedAt: FieldValue.delete(),
+                updatedAt: FieldValue.serverTimestamp()
+            });
+
+            // Telegram xabar
+            if (userData.telegramId) {
+                try {
+                    const telegramRoutes = require('./telegram');
+                    if (telegramRoutes.sendTelegramMessage) {
+                        const msg = `✅ <b>Hisobingiz blokdan chiqarildi</b>\n\n` +
+                            `Platformadan yana foydalanishingiz mumkin.`;
+                        await telegramRoutes.sendTelegramMessage(userData.telegramId, msg);
+                    }
+                } catch (e) {
+                    console.error('Telegram unban notification error:', e.message);
+                }
+            }
+
+            // In-app notification
+            try {
+                const { getDb } = require('../config/db');
+                const db = getDb();
+                await db.collection('notifications').add({
+                    userId: req.params.id,
+                    type: 'SYSTEM',
+                    title: 'Hisob blokdan chiqarildi',
+                    message: 'Platformadan yana foydalanishingiz mumkin.',
+                    isRead: false,
+                    createdAt: FieldValue.serverTimestamp()
+                });
+            } catch (e) {
+                console.error('Notification create error:', e.message);
+            }
+
+            const updated = await docRef.get();
+            res.json({ success: true, message: 'Blokdan chiqarildi', user: docToObj(updated) });
+        }
+    } catch (error) {
+        console.error('Ban error:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Block user (individual user blocking)
 router.post('/:id/block', async (req, res) => {
     try {
         const { blockedUserId } = req.body;

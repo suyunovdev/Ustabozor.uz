@@ -44,6 +44,8 @@ export const AdminUsers = () => {
     const [actionLoading, setActionLoading] = useState(false);
     const [showBanModal, setShowBanModal] = useState(false);
     const [userToBan, setUserToBan] = useState<User | null>(null);
+    const [banReason, setBanReason] = useState('');
+    const [banDuration, setBanDuration] = useState<string>('24h');
     const itemsPerPage = 10;
 
     useEffect(() => {
@@ -88,7 +90,7 @@ export const AdminUsers = () => {
         // Status filter
         if (statusFilter !== 'ALL') {
             result = result.filter(u =>
-                statusFilter === 'ONLINE' ? (u as any).isOnline : !(u as any).isOnline
+                statusFilter === 'ONLINE' ? u.isOnline : !u.isOnline
             );
         }
 
@@ -98,7 +100,7 @@ export const AdminUsers = () => {
                 case 'rating':
                     return (Number(b.rating) || 0) - (Number(a.rating) || 0);
                 case 'date':
-                    return new Date((b as any).createdAt || 0).getTime() - new Date((a as any).createdAt || 0).getTime();
+                    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
                 case 'balance':
                     return (b.balance || 0) - (a.balance || 0);
                 default:
@@ -119,9 +121,9 @@ export const AdminUsers = () => {
         workers: users.filter(u => u.role === UserRole.WORKER).length,
         customers: users.filter(u => u.role === UserRole.CUSTOMER).length,
         admins: users.filter(u => u.role === UserRole.ADMIN).length,
-        online: users.filter(u => (u as any).isOnline).length,
+        online: users.filter(u => u.isOnline).length,
         todayRegistered: users.filter(u => {
-            const createdAt = new Date((u as any).createdAt || 0);
+            const createdAt = new Date(u.createdAt || 0);
             return createdAt >= today;
         }).length
     };
@@ -181,11 +183,32 @@ export const AdminUsers = () => {
         if (!userToBan) return;
         setActionLoading(true);
         try {
-            const isBanned = (userToBan as any).isBanned;
-            await ApiService.updateUser(userToBan.id, { isBanned: !isBanned } as any);
-            setUsers(users.map(u => u.id === userToBan.id ? { ...u, isBanned: !isBanned } as any : u));
+            const isBanned = userToBan.isBanned;
+            if (isBanned) {
+                // Unban
+                const result = await ApiService.banUser(userToBan.id, { action: 'unban' });
+                if (result?.user) {
+                    setUsers(users.map(u => u.id === userToBan.id ? { ...u, ...result.user } : u));
+                } else {
+                    setUsers(users.map(u => u.id === userToBan.id ? { ...u, isBanned: false, blockReason: undefined, blockedUntil: undefined, blockedAt: undefined } : u));
+                }
+            } else {
+                // Ban
+                const result = await ApiService.banUser(userToBan.id, {
+                    action: 'ban',
+                    reason: banReason || undefined,
+                    duration: banDuration
+                });
+                if (result?.user) {
+                    setUsers(users.map(u => u.id === userToBan.id ? { ...u, ...result.user } : u));
+                } else {
+                    setUsers(users.map(u => u.id === userToBan.id ? { ...u, isBanned: true, blockReason: banReason } : u));
+                }
+            }
             setShowBanModal(false);
             setUserToBan(null);
+            setBanReason('');
+            setBanDuration('24h');
         } catch (error) {
             console.error('Error banning user:', error);
         } finally {
@@ -420,10 +443,10 @@ export const AdminUsers = () => {
                                                         alt={user.name}
                                                         className="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-sm group-hover:scale-105 transition-transform"
                                                     />
-                                                    {(user as any).isOnline && (
+                                                    {user.isOnline && (
                                                         <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></span>
                                                     )}
-                                                    {(user as any).isBanned && (
+                                                    {user.isBanned && (
                                                         <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 border-2 border-white dark:border-gray-800 rounded-full flex items-center justify-center">
                                                             <Ban size={10} className="text-white" />
                                                         </span>
@@ -432,8 +455,8 @@ export const AdminUsers = () => {
                                                 <div>
                                                     <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                                                         {user.name} {user.surname}
-                                                        {(user as any).isBanned && (
-                                                            <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-500 text-[10px] font-bold rounded">BANNED</span>
+                                                        {user.isBanned && (
+                                                            <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-500 text-[10px] font-bold rounded" title={user.blockReason || ''}>BANNED</span>
                                                         )}
                                                     </p>
                                                     <p className="text-xs text-gray-400">ID: {user.id.slice(0, 8)}...</p>
@@ -456,7 +479,7 @@ export const AdminUsers = () => {
                                             {getRoleBadge(user.role)}
                                         </td>
                                         <td className="px-6 py-4">
-                                            {(user as any).isOnline ? (
+                                            {user.isOnline ? (
                                                 <span className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm font-medium">
                                                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                                                     Online
@@ -498,11 +521,11 @@ export const AdminUsers = () => {
                                                 </button>
                                                 <button
                                                     onClick={() => { setUserToBan(user); setShowBanModal(true); }}
-                                                    className={`p-2 rounded-lg transition-colors ${(user as any).isBanned
+                                                    className={`p-2 rounded-lg transition-colors ${user.isBanned
                                                         ? 'hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400'
                                                         : 'hover:bg-orange-50 dark:hover:bg-orange-900/20 text-orange-500'
                                                         }`}
-                                                    title={(user as any).isBanned ? 'Blokdan chiqarish' : 'Bloklash'}
+                                                    title={user.isBanned ? 'Blokdan chiqarish' : 'Bloklash'}
                                                 >
                                                     <Ban size={18} />
                                                 </button>
@@ -585,16 +608,24 @@ export const AdminUsers = () => {
                                     alt={selectedUser.name}
                                     className="w-24 h-24 rounded-full mx-auto border-4 border-white shadow-xl"
                                 />
-                                {(selectedUser as any).isOnline && (
+                                {selectedUser.isOnline && (
                                     <span className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 border-3 border-white rounded-full"></span>
                                 )}
                             </div>
                             <h2 className="text-2xl font-bold text-white mt-4">{selectedUser.name} {selectedUser.surname}</h2>
                             <div className="mt-2">{getRoleBadge(selectedUser.role)}</div>
-                            {(selectedUser as any).isBanned && (
-                                <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-red-500/20 rounded-full">
-                                    <Ban size={14} className="text-red-200" />
-                                    <span className="text-red-100 text-sm font-medium">Bloklangan</span>
+                            {selectedUser.isBanned && (
+                                <div className="mt-3 space-y-1">
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-500/20 rounded-full">
+                                        <Ban size={14} className="text-red-200" />
+                                        <span className="text-red-100 text-sm font-medium">Bloklangan</span>
+                                    </div>
+                                    {selectedUser.blockReason && (
+                                        <p className="text-red-200 text-xs">Sabab: {selectedUser.blockReason}</p>
+                                    )}
+                                    {selectedUser.blockedUntil && (
+                                        <p className="text-red-200 text-xs">Gacha: {new Date(selectedUser.blockedUntil).toLocaleString('uz-UZ')}</p>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -625,7 +656,7 @@ export const AdminUsers = () => {
 
                             <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
                                 <span className="text-gray-600 dark:text-gray-300 font-medium">Status</span>
-                                {(selectedUser as any).isOnline ? (
+                                {selectedUser.isOnline ? (
                                     <span className="flex items-center gap-2 text-green-600 font-medium">
                                         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                                         Online
@@ -862,23 +893,73 @@ export const AdminUsers = () => {
             {/* Ban Modal */}
             {showBanModal && userToBan && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-sm p-8 shadow-2xl text-center">
-                        <div className={`w-16 h-16 ${(userToBan as any).isBanned ? 'bg-green-100 dark:bg-green-900/30' : 'bg-orange-100 dark:bg-orange-900/30'} rounded-full flex items-center justify-center mx-auto mb-4`}>
-                            {(userToBan as any).isBanned ? (
-                                <CheckCircle size={32} className="text-green-500" />
-                            ) : (
-                                <Ban size={32} className="text-orange-500" />
-                            )}
+                    <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-md p-8 shadow-2xl">
+                        <div className="text-center">
+                            <div className={`w-16 h-16 ${userToBan.isBanned ? 'bg-green-100 dark:bg-green-900/30' : 'bg-orange-100 dark:bg-orange-900/30'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                                {userToBan.isBanned ? (
+                                    <CheckCircle size={32} className="text-green-500" />
+                                ) : (
+                                    <Ban size={32} className="text-orange-500" />
+                                )}
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                                {userToBan.isBanned ? 'Blokdan chiqarish' : 'Foydalanuvchini bloklash'}
+                            </h3>
+                            <p className="text-gray-500 dark:text-gray-400 mb-6">
+                                <strong>{userToBan.name} {userToBan.surname}</strong>
+                                {userToBan.isBanned && userToBan.blockReason && (
+                                    <span className="block text-sm mt-1 text-red-400">Sabab: {userToBan.blockReason}</span>
+                                )}
+                            </p>
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                            {(userToBan as any).isBanned ? 'Blokdan chiqarish' : 'Foydalanuvchini bloklash'}
-                        </h3>
-                        <p className="text-gray-500 dark:text-gray-400 mb-6">
-                            <strong>{userToBan.name} {userToBan.surname}</strong> ni {(userToBan as any).isBanned ? 'blokdan chiqarmoqchimisiz?' : 'bloklashni tasdiqlaysizmi?'}
-                        </p>
+
+                        {/* Ban form — faqat bloklash uchun */}
+                        {!userToBan.isBanned && (
+                            <div className="space-y-4 mb-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sabab</label>
+                                    <input
+                                        type="text"
+                                        value={banReason}
+                                        onChange={(e) => setBanReason(e.target.value)}
+                                        placeholder="Masalan: Spam tarqatish, Qoidalar buzish..."
+                                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-white placeholder-gray-400"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Muddat</label>
+                                    <div className="grid grid-cols-5 gap-2">
+                                        {[
+                                            { value: '1h', label: '1 soat' },
+                                            { value: '24h', label: '24 soat' },
+                                            { value: '7d', label: '7 kun' },
+                                            { value: '30d', label: '30 kun' },
+                                            { value: 'permanent', label: 'Doimiy' }
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => setBanDuration(opt.value)}
+                                                className={`py-2 px-2 text-xs font-bold rounded-lg transition-all ${banDuration === opt.value
+                                                    ? opt.value === 'permanent'
+                                                        ? 'bg-red-600 text-white shadow-lg'
+                                                        : 'bg-orange-600 text-white shadow-lg'
+                                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-400 dark:text-gray-500">
+                                    Foydalanuvchiga Telegram va ilovada xabar yuboriladi
+                                </p>
+                            </div>
+                        )}
+
                         <div className="flex gap-3">
                             <button
-                                onClick={() => { setShowBanModal(false); setUserToBan(null); }}
+                                onClick={() => { setShowBanModal(false); setUserToBan(null); setBanReason(''); setBanDuration('24h'); }}
                                 className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                             >
                                 Bekor qilish
@@ -886,10 +967,10 @@ export const AdminUsers = () => {
                             <button
                                 onClick={handleBanUser}
                                 disabled={actionLoading}
-                                className={`flex-1 py-3 ${(userToBan as any).isBanned ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-600 hover:bg-orange-700'} text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50`}
+                                className={`flex-1 py-3 ${userToBan.isBanned ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-600 hover:bg-orange-700'} text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50`}
                             >
                                 {actionLoading ? <Loader2 size={18} className="animate-spin" /> : null}
-                                {(userToBan as any).isBanned ? 'Chiqarish' : 'Bloklash'}
+                                {userToBan.isBanned ? 'Blokdan chiqarish' : 'Bloklash'}
                             </button>
                         </div>
                     </div>

@@ -36,6 +36,10 @@ export interface User {
   completedJobs?: number;
   hourlyRate?: number;
   createdAt?: string;
+  isBanned?: boolean;
+  blockReason?: string;
+  blockedUntil?: string | null;
+  blockedAt?: string;
 }
 
 export interface WorkerProfile extends User {
