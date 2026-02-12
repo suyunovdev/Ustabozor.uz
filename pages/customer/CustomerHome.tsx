@@ -6,7 +6,7 @@ import { WorkerProfile } from '../../types';
 import { openChatWith } from '../../services/chatUtils';
 import { MessageCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { getSavedLocation, LocationData } from '../../services/locationService';
+import { getSavedLocation, requestUserLocation, LocationData } from '../../services/locationService';
 
 const CATEGORIES = [
   { id: 1, name: 'Santexnika', icon: <div className="text-blue-500 dark:text-blue-400">🚿</div>, color: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -48,8 +48,32 @@ export const CustomerHome = () => {
     await openChatWith(currentUser.id, workerId, navigate);
   };
 
+  const handleFixLocation = async () => {
+    try {
+      const location = await requestUserLocation();
+      setUserLocation(location);
+    } catch {}
+  };
+
   return (
     <div className="pb-6">
+      {/* Joylashuv ogohlantirishi */}
+      {!userLocation && (
+        <div className="mx-4 mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-2xl border border-orange-200 dark:border-orange-800/50 flex items-center gap-3">
+          <MapPin size={20} className="text-orange-500 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Joylashuv aniqlanmagan</p>
+            <p className="text-xs text-orange-500 dark:text-orange-400">Yaqin ishchilarni ko'rish uchun joylashuvni sozlang</p>
+          </div>
+          <button
+            onClick={handleFixLocation}
+            className="px-3 py-1.5 bg-orange-500 text-white text-xs font-bold rounded-lg flex-shrink-0"
+          >
+            Sozlash
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-900 dark:to-gray-900 px-6 pt-12 pb-8 rounded-b-[2.5rem] shadow-xl text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>

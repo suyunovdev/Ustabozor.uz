@@ -178,3 +178,55 @@ export const isLocationStale = (location: LocationData | null): boolean => {
     const fiveMinutes = 5 * 60 * 1000;
     return Date.now() - location.timestamp > fiveMinutes;
 };
+
+// Joylashuv ruxsatini so'rash - rad etilganda REJECT qiladi (gate uchun)
+export const requestLocationWithStatus = (): Promise<LocationData> => {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('GEOLOCATION_NOT_SUPPORTED'));
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                const addressInfo = await getAddressFromCoordinates(latitude, longitude);
+
+                const locationData: LocationData = {
+                    lat: latitude,
+                    lng: longitude,
+                    address: addressInfo.address,
+                    city: addressInfo.city,
+                    district: addressInfo.district,
+                    country: addressInfo.country,
+                    timestamp: Date.now(),
+                    isManual: false
+                };
+
+                saveLocation(locationData);
+                resolve(locationData);
+            },
+            (error) => {
+                reject(new Error(
+                    error.code === 1 ? 'PERMISSION_DENIED' :
+                    error.code === 2 ? 'POSITION_UNAVAILABLE' :
+                    'TIMEOUT'
+                ));
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 300000
+            }
+        );
+    });
+};
+
+// Saqlangan joylashuv hali yaroqlimi tekshirish (gate skip logikasi uchun)
+export const hasValidSavedLocation = (): boolean => {
+    const saved = getSavedLocation();
+    if (!saved) return false;
+    if (saved.isManual) return true;
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    return Date.now() - saved.timestamp < twentyFourHours;
+};

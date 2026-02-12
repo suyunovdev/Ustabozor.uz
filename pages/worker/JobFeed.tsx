@@ -11,7 +11,7 @@ import {
 } from '../../components/Icons';
 import { MapView, MapMarker } from '../../components/MapView';
 import { NavigationModal } from '../../components/NavigationModal';
-import { getSavedLocation, LocationData } from '../../services/locationService';
+import { getSavedLocation, requestUserLocation, LocationData } from '../../services/locationService';
 import { openChatWith } from '../../services/chatUtils';
 
 // ====== YORDAMCHI FUNKSIYALAR ======
@@ -104,6 +104,7 @@ export const JobFeed = () => {
 
   // Location
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [hasRealLocation, setHasRealLocation] = useState(false);
 
   // Navigation Modal State
   const [navigationTarget, setNavigationTarget] = useState<{
@@ -209,9 +210,11 @@ export const JobFeed = () => {
     const savedLocation = getSavedLocation();
     if (savedLocation) {
       setUserLocation({ lat: savedLocation.lat, lng: savedLocation.lng });
+      setHasRealLocation(true);
     } else {
       // Fallback: Tashkent default
       setUserLocation({ lat: 41.311081, lng: 69.240562 });
+      setHasRealLocation(false);
     }
 
     // Worker status
@@ -361,6 +364,29 @@ export const JobFeed = () => {
 
   return (
     <div className="bg-gray-50 dark:bg-gray-950 min-h-screen pb-24">
+
+      {/* Joylashuv ogohlantirishi */}
+      {!hasRealLocation && (
+        <div className="mx-4 mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-2xl border border-orange-200 dark:border-orange-800/50 flex items-center gap-3">
+          <MapPin size={20} className="text-orange-500 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Joylashuv aniqlanmagan</p>
+            <p className="text-xs text-orange-500 dark:text-orange-400">Masofa to'g'ri hisoblanishi uchun GPS ruxsat bering</p>
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                const loc = await requestUserLocation();
+                setUserLocation({ lat: loc.lat, lng: loc.lng });
+                setHasRealLocation(true);
+              } catch {}
+            }}
+            className="px-3 py-1.5 bg-orange-500 text-white text-xs font-bold rounded-lg flex-shrink-0"
+          >
+            GPS
+          </button>
+        </div>
+      )}
 
       {/* ===== HEADER & STATS ===== */}
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-900 dark:to-gray-900 p-6 text-white">

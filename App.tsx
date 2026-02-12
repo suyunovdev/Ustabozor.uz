@@ -20,8 +20,9 @@ import { MapFinder } from './pages/MapFinder';
 import { TelegramRegister } from './pages/TelegramRegister';
 import { User, UserRole } from './types';
 import { ApiService } from './services/api';
-import { requestUserLocation, getSavedLocation, isLocationStale, LocationData } from './services/locationService';
+import { requestUserLocation, getSavedLocation, isLocationStale, hasValidSavedLocation, LocationData } from './services/locationService';
 import { initTelegramWebApp, isTelegramWebApp, getTelegramUser, getTelegramInitData } from './services/telegram';
+import { LocationGate } from './components/LocationGate';
 
 const App = () => {
   const [user, setUser] = useState<User | null>(() => {
@@ -40,6 +41,7 @@ const App = () => {
   });
 
   const [userLocation, setUserLocation] = useState<LocationData | null>(() => getSavedLocation());
+  const [locationReady, setLocationReady] = useState<boolean>(() => hasValidSavedLocation());
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
@@ -105,25 +107,32 @@ const App = () => {
     }
   }, [isDarkMode]);
 
-  // Joylashuvni so'rash - foydalanuvchi login bo'lgandan keyin
+  // Fonda joylashuvni yangilash — faqat gate o'tilgandan keyin
   useEffect(() => {
-    if (user && isLocationStale(userLocation)) {
+    if (user && locationReady && isLocationStale(userLocation)) {
       requestUserLocation()
         .then((location) => {
           setUserLocation(location);
-
-          // GPS locationni backend'ga saqlash (xaritada to'g'ri ko'rsatish uchun)
           if (user && location.lat && location.lng) {
             ApiService.updateUser(user.id, {
               location: { lat: location.lat, lng: location.lng }
             } as any).catch(err => console.error('Location update error:', err));
           }
         })
-        .catch((error) => {
-          console.error('Location error:', error);
-        });
+        .catch(() => {});
     }
-  }, [user]);
+  }, [user, locationReady]);
+
+  // LocationGate dan joylashuv qabul qilinganda
+  const handleLocationGranted = (location: LocationData) => {
+    setUserLocation(location);
+    setLocationReady(true);
+    if (user && location.lat && location.lng) {
+      ApiService.updateUser(user.id, {
+        location: { lat: location.lat, lng: location.lng }
+      } as any).catch(err => console.error('Location update error:', err));
+    }
+  };
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -226,42 +235,47 @@ const App = () => {
             path="*"
             element={
               <Layout user={user} logout={handleLogout} toggleTheme={toggleTheme} isDarkMode={isDarkMode}>
-                <Routes>
-                  {/* Admin Routes */}
-                  {role === UserRole.ADMIN && (
-                    <>
-                      <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                      <Route path="/admin/users" element={<AdminUsers />} />
-                      <Route path="/admin/orders" element={<AdminOrders />} />
-                      <Route path="/admin/finance" element={<AdminFinance />} />
-                      <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-                    </>
-                  )}
+                {/* Location Gate — faqat customer/worker uchun */}
+                {!locationReady && role !== UserRole.ADMIN ? (
+                  <LocationGate onLocationGranted={handleLocationGranted} />
+                ) : (
+                  <Routes>
+                    {/* Admin Routes */}
+                    {role === UserRole.ADMIN && (
+                      <>
+                        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                        <Route path="/admin/users" element={<AdminUsers />} />
+                        <Route path="/admin/orders" element={<AdminOrders />} />
+                        <Route path="/admin/finance" element={<AdminFinance />} />
+                        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+                      </>
+                    )}
 
-                  {/* Customer Routes */}
-                  {role === UserRole.CUSTOMER && (
-                    <>
-                      <Route path="/customer/home" element={<CustomerHome />} />
-                      <Route path="/customer/create" element={<CreateOrder />} />
-                      <Route path="/customer/orders" element={<MyOrders />} />
-                      <Route path="/customer/map" element={<MapFinder />} />
-                      <Route path="/profile" element={<Profile user={user} logout={handleLogout} toggleTheme={toggleTheme} isDarkMode={isDarkMode} onUserUpdate={handleUserUpdate} />} />
-                      <Route path="/chat" element={<ChatPage />} />
-                      <Route path="*" element={<Navigate to="/customer/home" replace />} />
-                    </>
-                  )}
+                    {/* Customer Routes */}
+                    {role === UserRole.CUSTOMER && (
+                      <>
+                        <Route path="/customer/home" element={<CustomerHome />} />
+                        <Route path="/customer/create" element={<CreateOrder />} />
+                        <Route path="/customer/orders" element={<MyOrders />} />
+                        <Route path="/customer/map" element={<MapFinder />} />
+                        <Route path="/profile" element={<Profile user={user} logout={handleLogout} toggleTheme={toggleTheme} isDarkMode={isDarkMode} onUserUpdate={handleUserUpdate} />} />
+                        <Route path="/chat" element={<ChatPage />} />
+                        <Route path="*" element={<Navigate to="/customer/home" replace />} />
+                      </>
+                    )}
 
-                  {/* Worker Routes */}
-                  {role === UserRole.WORKER && (
-                    <>
-                      <Route path="/worker/home" element={<JobFeed />} />
-                      <Route path="/worker/orders" element={<MyJobs />} />
-                      <Route path="/profile" element={<Profile user={user} logout={handleLogout} toggleTheme={toggleTheme} isDarkMode={isDarkMode} onUserUpdate={handleUserUpdate} />} />
-                      <Route path="/chat" element={<ChatPage />} />
-                      <Route path="*" element={<Navigate to="/worker/home" replace />} />
-                    </>
-                  )}
-                </Routes>
+                    {/* Worker Routes */}
+                    {role === UserRole.WORKER && (
+                      <>
+                        <Route path="/worker/home" element={<JobFeed />} />
+                        <Route path="/worker/orders" element={<MyJobs />} />
+                        <Route path="/profile" element={<Profile user={user} logout={handleLogout} toggleTheme={toggleTheme} isDarkMode={isDarkMode} onUserUpdate={handleUserUpdate} />} />
+                        <Route path="/chat" element={<ChatPage />} />
+                        <Route path="*" element={<Navigate to="/worker/home" replace />} />
+                      </>
+                    )}
+                  </Routes>
+                )}
               </Layout>
             }
           />
