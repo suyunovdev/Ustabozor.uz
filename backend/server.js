@@ -12,28 +12,7 @@ const PORT = process.env.PORT || 5000;
 // Initialize Firebase
 initializeFirebase();
 
-// Security headers
-app.use(helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-    contentSecurityPolicy: false // SPA uchun o'chirildi
-}));
-
-// Rate limiting — umumiy
-const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 daqiqa
-    max: 200, // har 15 daqiqada 200 ta so'rov
-    message: { message: 'Juda ko\'p so\'rov. Biroz kuting.' }
-});
-app.use(generalLimiter);
-
-// Rate limiting — login/register uchun qattiqroq
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 daqiqa
-    max: 10, // har 15 daqiqada 10 ta urinish
-    message: { message: 'Juda ko\'p urinish. 15 daqiqadan keyin qaytadan urinib ko\'ring.' }
-});
-
-// CORS
+// CORS — rate limitdan OLDIN bo'lishi kerak (preflight OPTIONS uchun)
 const allowedOrigins = (process.env.FRONTEND_URL || '*').split(',').map(s => s.trim());
 const corsOptions = {
     origin: function (origin, callback) {
@@ -48,6 +27,30 @@ const corsOptions = {
     credentials: true
 };
 app.use(cors(corsOptions));
+
+// Security headers
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: false // SPA uchun o'chirildi
+}));
+
+// Rate limiting — umumiy (OPTIONS so'rovlarni o'tkazib yuborish)
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 daqiqa
+    max: 300, // har 15 daqiqada 300 ta so'rov
+    message: { message: 'Juda ko\'p so\'rov. Biroz kuting.' },
+    skip: (req) => req.method === 'OPTIONS'
+});
+app.use(generalLimiter);
+
+// Rate limiting — login/register uchun qattiqroq
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 daqiqa
+    max: 20, // har 15 daqiqada 20 ta urinish
+    message: { message: 'Juda ko\'p urinish. 15 daqiqadan keyin qaytadan urinib ko\'ring.' },
+    skip: (req) => req.method === 'OPTIONS'
+});
+
 app.use(bodyParser.json());
 
 // --- ROUTES ---
