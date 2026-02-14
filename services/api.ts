@@ -1,7 +1,7 @@
 import { User, Order, Chat, Message, WorkerProfile, Notification } from '../types';
 
 // Production uchun Render URL, development uchun localhost
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Transform functions to convert MongoDB format to frontend format
 const transformUser = (user: any): User => {

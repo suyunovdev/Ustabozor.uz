@@ -237,14 +237,14 @@ const App = () => {
     // Sahifa yopilganda offline qilish
     const handleBeforeUnload = () => {
       // sendBeacon ishonchli — brauzer yopilayotganda ham yuboriladi
-      const url = `${(import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api'}/users/${user.id}/offline`;
+      const url = `${process.env.VITE_API_URL || 'http://localhost:5000/api'}/users/${user.id}/offline`;
       navigator.sendBeacon(url, JSON.stringify({}));
     };
 
     // Visibility change — tab yopilganda
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        const url = `${(import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api'}/users/${user.id}/offline`;
+        const url = `${process.env.VITE_API_URL || 'http://localhost:5000/api'}/users/${user.id}/offline`;
         navigator.sendBeacon(url, JSON.stringify({}));
       } else if (document.visibilityState === 'visible') {
         ApiService.sendHeartbeat(user.id);
