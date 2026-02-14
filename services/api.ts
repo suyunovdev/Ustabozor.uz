@@ -189,30 +189,22 @@ async function request<T>(path: string, options: RequestInit = {}, useCache = fa
 
 export const ApiService = {
     // --- AUTH ---
-    login: async (email: string, password: string): Promise<User | null> => {
-        try {
-            const data = await request<any>('/auth/login', {
-                method: 'POST',
-                body: JSON.stringify({ email, password })
-            });
-            if (data.token) setToken(data.token);
-            return transformUser(data);
-        } catch (error) {
-            return null;
-        }
+    login: async (email: string, password: string): Promise<User> => {
+        const data = await request<any>('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+        });
+        if (data.token) setToken(data.token);
+        return transformUser(data);
     },
 
-    register: async (userData: any): Promise<User | null> => {
-        try {
-            const data = await request<any>('/auth/register', {
-                method: 'POST',
-                body: JSON.stringify(userData)
-            });
-            if (data.token) setToken(data.token);
-            return transformUser(data);
-        } catch (error) {
-            return null;
-        }
+    register: async (userData: any): Promise<User> => {
+        const data = await request<any>('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(userData)
+        });
+        if (data.token) setToken(data.token);
+        return transformUser(data);
     },
 
     // --- USERS ---

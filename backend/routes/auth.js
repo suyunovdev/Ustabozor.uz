@@ -33,7 +33,11 @@ router.post('/login', async (req, res) => {
 
         // Eski parollar uchun (hashing qo'shilmasdan oldingi) va yangi parollar uchun
         let isValidPassword = false;
-        if (userData.password && userData.password.startsWith('$2a$')) {
+        const isHashed = userData.password && (userData.password.startsWith('$2a$') || userData.password.startsWith('$2b$'));
+
+        console.log(`Password check for ${email}: isHashed=${isHashed}, passLength=${userData.password?.length}`);
+
+        if (isHashed) {
             // Hashed parol — bcrypt bilan tekshirish
             isValidPassword = await bcrypt.compare(password, userData.password);
         } else {
@@ -42,8 +46,11 @@ router.post('/login', async (req, res) => {
             if (isValidPassword) {
                 const hashedPassword = await bcrypt.hash(password, 10);
                 await userDoc.ref.update({ password: hashedPassword });
+                console.log(`Password migrated to bcrypt for ${email}`);
             }
         }
+
+        console.log(`Password valid: ${isValidPassword}`);
 
         if (!isValidPassword) {
             return res.status(401).json({ message: 'Email yoki parol noto\'g\'ri' });

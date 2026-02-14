@@ -92,12 +92,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setError('');
 
     try {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
       const user = await MockService.login(loginEmail, loginPassword);
       onLogin(user);
-    } catch (err) {
-      setError('Email yoki parol noto\'g\'ri.');
+    } catch (err: any) {
+      setError(err.message || 'Email yoki parol noto\'g\'ri.');
       setIsLoading(false);
     }
   };
@@ -121,17 +119,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           ...regData,
           role
         });
-        if (newUser) {
-          setTimeout(() => {
-            onLogin(newUser);
-          }, 1000);
-        } else {
-          setIsLoading(false);
-          setError("Ro'yxatdan o'tishda xatolik. Keyinroq urinib ko'ring.");
-        }
-      } catch (e) {
+        onLogin(newUser);
+      } catch (e: any) {
         setIsLoading(false);
-        setError("Server bilan bog'lanishda xatolik. Keyinroq urinib ko'ring.");
+        setError(e.message || "Ro'yxatdan o'tishda xatolik.");
       }
     }
   };
@@ -144,17 +135,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         role: UserRole.WORKER,
         skills: workerSkills
       });
-      if (newUser) {
-        setTimeout(() => {
-          onLogin(newUser);
-        }, 1000);
-      } else {
-        setIsLoading(false);
-        setError("Ro'yxatdan o'tishda xatolik. Keyinroq urinib ko'ring.");
-      }
-    } catch (e) {
+      onLogin(newUser);
+    } catch (e: any) {
       setIsLoading(false);
-      setError("Server bilan bog'lanishda xatolik. Keyinroq urinib ko'ring.");
+      setError(e.message || "Ro'yxatdan o'tishda xatolik.");
     }
   };
 
