@@ -9,6 +9,9 @@ const { initializeFirebase } = require('./config/db');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Render.com proxy orqali ishlaydi — haqiqiy IP ni olish uchun
+app.set('trust proxy', 1);
+
 // Initialize Firebase
 initializeFirebase();
 
