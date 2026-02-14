@@ -207,6 +207,25 @@ export const ApiService = {
         return transformUser(data);
     },
 
+    googleAuth: async (idToken: string): Promise<any> => {
+        const data = await request<any>('/auth/google', {
+            method: 'POST',
+            body: JSON.stringify({ idToken })
+        });
+        if (data.token) setToken(data.token);
+        if (data.needsRole) return data;
+        return transformUser(data);
+    },
+
+    googleComplete: async (idToken: string, role: string, phone?: string, skills?: string[]): Promise<User> => {
+        const data = await request<any>('/auth/google/complete', {
+            method: 'POST',
+            body: JSON.stringify({ idToken, role, phone, skills })
+        });
+        if (data.token) setToken(data.token);
+        return transformUser(data);
+    },
+
     // --- USERS ---
     getWorkers: async (): Promise<WorkerProfile[]> => {
         try {

@@ -17,6 +17,14 @@ export const MockService = {
     return await ApiService.register(userData);
   },
 
+  googleAuth: async (idToken: string) => {
+    return await ApiService.googleAuth(idToken);
+  },
+
+  googleComplete: async (idToken: string, role: string, phone?: string, skills?: string[]) => {
+    return await ApiService.googleComplete(idToken, role, phone, skills);
+  },
+
   // User Functions
   getWorkers: async (): Promise<WorkerProfile[]> => {
     return await ApiService.getWorkers();

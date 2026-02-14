@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const admin = require('firebase-admin');
 const { usersRef } = require('../models/User');
 const { docToObj, withTimestamps } = require('../models/firestore');
 
@@ -124,6 +125,141 @@ router.post('/register', async (req, res) => {
     } catch (error) {
         console.error('Register error:', error.message);
         res.status(400).json({ message: 'Server xatosi' });
+    }
+});
+
+// Google OAuth — idToken bilan login/register
+router.post('/google', async (req, res) => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) {
+            return res.status(400).json({ message: 'idToken kerak' });
+        }
+
+        // Firebase Admin SDK bilan tokenni tekshirish
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const { email, name, picture, uid } = decodedToken;
+
+        console.log(`Google auth attempt: ${email}`);
+
+        // Email bo'yicha mavjud foydalanuvchini topish
+        const existing = await usersRef()
+            .where('email', '==', email)
+            .limit(1)
+            .get();
+
+        if (!existing.empty) {
+            const userDoc = existing.docs[0];
+            const userData = userDoc.data();
+
+            // O'chirilgan foydalanuvchi
+            if (userData.isDeleted) {
+                return res.status(403).json({ message: 'Bu hisob o\'chirilgan' });
+            }
+
+            // Banned foydalanuvchi
+            if (userData.isBanned) {
+                return res.status(403).json({ message: 'Bu hisob bloklangan' });
+            }
+
+            // Mavjud user — oauthProvider ni yangilash (agar hali yo'q bo'lsa)
+            if (!userData.oauthProvider) {
+                await userDoc.ref.update({ oauthProvider: 'google' });
+            }
+
+            const user = docToObj(userDoc);
+            const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+            console.log(`Google login success: ${email}`);
+            return res.json({ ...user, token });
+        }
+
+        // Yangi user — role tanlash kerak
+        console.log(`Google new user, needs role: ${email}`);
+        return res.json({
+            needsRole: true,
+            googleData: {
+                email: email,
+                name: name || '',
+                avatar: picture || '',
+                providerId: uid
+            }
+        });
+    } catch (error) {
+        console.error('Google auth error:', error.message);
+        res.status(401).json({ message: 'Google autentifikatsiya xatosi' });
+    }
+});
+
+// Google OAuth — role tanlagandan keyin ro'yxatdan o'tish
+router.post('/google/complete', async (req, res) => {
+    try {
+        const { idToken, role, phone } = req.body;
+        if (!idToken || !role) {
+            return res.status(400).json({ message: 'idToken va role kerak' });
+        }
+
+        // Tokenni qayta tekshirish
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const { email, name, picture, uid } = decodedToken;
+
+        // Email allaqachon mavjudligini tekshirish
+        const existing = await usersRef()
+            .where('email', '==', email)
+            .limit(1)
+            .get();
+
+        if (!existing.empty) {
+            return res.status(400).json({ message: 'Bu email allaqachon ro\'yxatdan o\'tgan' });
+        }
+
+        // Telefon tekshirish (agar berilgan bo'lsa)
+        if (phone) {
+            const phoneExists = await usersRef()
+                .where('phone', '==', phone)
+                .limit(1)
+                .get();
+
+            if (!phoneExists.empty) {
+                return res.status(400).json({ message: 'Bu telefon raqam allaqachon ro\'yxatdan o\'tgan' });
+            }
+        }
+
+        // Ismni bo'lish (Google'dan kelgan to'liq ism)
+        const nameParts = (name || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const surname = nameParts.slice(1).join(' ') || '';
+
+        const userData = {
+            name: firstName,
+            surname: surname,
+            phone: phone || '',
+            email: email,
+            password: null, // Google user — parol yo'q
+            oauthProvider: 'google',
+            role: (role === 'ADMIN') ? 'CUSTOMER' : (role || 'CUSTOMER'),
+            avatar: picture || '',
+            balance: 0,
+            rating: 5.0,
+            ratingCount: 0,
+            skills: req.body.skills || [],
+            hourlyRate: req.body.hourlyRate || 0,
+            completedJobs: 0,
+            isOnline: false,
+            location: { lat: 0, lng: 0 },
+            blockedUsers: []
+        };
+
+        const docRef = await usersRef().add(withTimestamps(userData));
+        const newDoc = await docRef.get();
+        const user = docToObj(newDoc);
+        const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+        console.log(`Google register success: ${email} as ${role}`);
+        res.json({ ...user, token });
+    } catch (error) {
+        console.error('Google complete error:', error.message);
+        res.status(400).json({ message: 'Google ro\'yxatdan o\'tish xatosi' });
     }
 });
 

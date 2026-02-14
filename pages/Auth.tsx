@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 import { MockService } from '../services/mockDb';
+import { signInWithGoogle } from '../services/firebase';
 import {
   Zap, ChevronRight, Loader2, User as UserIcon, Briefcase,
   Camera, FileText, CheckCircle, Mail, Lock, Eye, EyeOff, X
@@ -84,6 +85,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [workerSkills, setWorkerSkills] = useState<string[]>([]);
   const [setupStep, setSetupStep] = useState(1);
 
+  // Google OAuth State
+  const [googleIdToken, setGoogleIdToken] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   // --- Handlers ---
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -142,6 +147,63 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setError('');
+    try {
+      const { idToken } = await signInWithGoogle();
+      const result = await MockService.googleAuth(idToken);
+
+      if (result.needsRole) {
+        // Yangi user — role tanlashi kerak
+        setGoogleIdToken(idToken);
+        setRegData({
+          name: result.googleData.name || '',
+          surname: '',
+          email: result.googleData.email || '',
+          phone: '',
+          password: ''
+        });
+        setView('ROLE_SELECT');
+        setGoogleLoading(false);
+      } else {
+        // Mavjud user — darhol login
+        onLogin(result);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Google bilan kirishda xatolik');
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleRoleSelect = async (role: UserRole) => {
+    if (!googleIdToken) return;
+    if (role === UserRole.WORKER) {
+      setView('WORKER_SETUP');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const user = await MockService.googleComplete(googleIdToken, role);
+      onLogin(user);
+    } catch (e: any) {
+      setIsLoading(false);
+      setError(e.message || "Ro'yxatdan o'tishda xatolik.");
+    }
+  };
+
+  const handleGoogleWorkerComplete = async () => {
+    if (!googleIdToken) return;
+    setIsLoading(true);
+    try {
+      const user = await MockService.googleComplete(googleIdToken, UserRole.WORKER, undefined, workerSkills);
+      onLogin(user);
+    } catch (e: any) {
+      setIsLoading(false);
+      setError(e.message || "Ro'yxatdan o'tishda xatolik.");
+    }
+  };
+
   const toggleSkill = (skill: string) => {
     if (workerSkills.includes(skill)) {
       setWorkerSkills(workerSkills.filter(s => s !== skill));
@@ -182,6 +244,32 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               className="w-full bg-blue-600/30 backdrop-blur-md border border-white/20 text-white font-bold text-lg py-4 rounded-2xl hover:bg-blue-600/40 transition-all duration-300"
             >
               Ro'yxatdan o'tish
+            </button>
+
+            <div className="flex items-center my-2">
+              <div className="flex-1 border-t border-white/20"></div>
+              <span className="px-4 text-white/60 text-sm">yoki</span>
+              <div className="flex-1 border-t border-white/20"></div>
+            </div>
+
+            <button
+              onClick={handleGoogleLogin}
+              disabled={googleLoading}
+              className="w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-white font-semibold text-base py-4 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-3"
+            >
+              {googleLoading ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <>
+                  <svg width="20" height="20" viewBox="0 0 48 48">
+                    <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+                    <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+                    <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+                    <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+                  </svg>
+                  Google bilan kirish
+                </>
+              )}
             </button>
           </div>
         )}
@@ -235,7 +323,33 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               </button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex items-center my-5">
+              <div className="flex-1 border-t border-gray-200 dark:border-gray-700"></div>
+              <span className="px-3 text-gray-400 text-sm">yoki</span>
+              <div className="flex-1 border-t border-gray-200 dark:border-gray-700"></div>
+            </div>
+
+            <button
+              onClick={handleGoogleLogin}
+              disabled={googleLoading}
+              className="w-full bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-white font-medium py-3 rounded-xl transition-all border border-gray-200 dark:border-gray-700 flex items-center justify-center gap-3"
+            >
+              {googleLoading ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 48 48">
+                    <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+                    <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+                    <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+                    <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+                  </svg>
+                  Google bilan kirish
+                </>
+              )}
+            </button>
+
+            <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
               Hisobingiz yo'qmi?{' '}
               <button onClick={() => { setView('REGISTER'); setError(''); }} className="text-blue-600 dark:text-blue-400 font-bold hover:underline">
                 Ro'yxatdan o'ting
@@ -335,7 +449,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             <h2 className="text-2xl font-bold text-white text-center mb-6">Rolni tanlang</h2>
 
             <button
-              onClick={() => handleRoleSelect(UserRole.CUSTOMER)}
+              onClick={() => googleIdToken ? handleGoogleRoleSelect(UserRole.CUSTOMER) : handleRoleSelect(UserRole.CUSTOMER)}
               className="w-full p-5 border border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-2xl flex items-center space-x-4 transition-all group"
             >
               <div className="w-14 h-14 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
@@ -348,7 +462,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             </button>
 
             <button
-              onClick={() => handleRoleSelect(UserRole.WORKER)}
+              onClick={() => googleIdToken ? handleGoogleRoleSelect(UserRole.WORKER) : handleRoleSelect(UserRole.WORKER)}
               className="w-full p-5 border border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-2xl flex items-center space-x-4 transition-all group"
             >
               <div className="w-14 h-14 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
@@ -413,7 +527,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 </div>
 
                 <button
-                  onClick={handleWorkerSetupComplete}
+                  onClick={googleIdToken ? handleGoogleWorkerComplete : handleWorkerSetupComplete}
                   disabled={isLoading}
                   className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-4 flex items-center justify-center shadow-lg shadow-green-600/30"
                 >

@@ -40,6 +40,7 @@ export interface User {
   blockReason?: string;
   blockedUntil?: string | null;
   blockedAt?: string;
+  oauthProvider?: 'google' | 'apple';
 }
 
 export interface WorkerProfile extends User {
