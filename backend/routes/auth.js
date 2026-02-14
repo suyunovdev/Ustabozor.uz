@@ -26,6 +26,11 @@ router.post('/login', async (req, res) => {
         const userDoc = snapshot.docs[0];
         const userData = userDoc.data();
 
+        // O'chirilgan foydalanuvchi login qila olmaydi
+        if (userData.isDeleted) {
+            return res.status(403).json({ message: 'Bu hisob o\'chirilgan' });
+        }
+
         // Eski parollar uchun (hashing qo'shilmasdan oldingi) va yangi parollar uchun
         let isValidPassword = false;
         if (userData.password && userData.password.startsWith('$2a$')) {

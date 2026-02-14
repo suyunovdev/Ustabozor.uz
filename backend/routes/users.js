@@ -14,6 +14,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.get('/', async (req, res) => {
     try {
         const role = req.query.role;
+        const includeDeleted = req.query.includeDeleted === 'true';
         let query = usersRef();
 
         if (role) {
@@ -21,7 +22,14 @@ router.get('/', async (req, res) => {
         }
 
         const snapshot = await query.get();
-        res.json(queryToArray(snapshot));
+        let users = queryToArray(snapshot);
+
+        // O'chirilganlarni yashirish (admin so'ramasa)
+        if (!includeDeleted) {
+            users = users.filter(u => !u.isDeleted);
+        }
+
+        res.json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -143,7 +151,7 @@ router.put('/:id/online', async (req, res) => {
     }
 });
 
-// Delete user
+// Soft delete user (bazadan o'chirmaydi, faqat isDeleted: true qo'yadi)
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
         const docRef = usersRef().doc(req.params.id);
@@ -153,8 +161,31 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        await docRef.delete();
-        res.json({ success: true, message: 'User deleted' });
+        await docRef.update({
+            isDeleted: true,
+            deletedAt: new Date().toISOString()
+        });
+        res.json({ success: true, message: 'Foydalanuvchi o\'chirildi' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Restore deleted user (qayta tiklash)
+router.post('/:id/restore', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const docRef = usersRef().doc(req.params.id);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        await docRef.update({
+            isDeleted: false,
+            deletedAt: null
+        });
+        res.json({ success: true, message: 'Foydalanuvchi qayta tiklandi' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
