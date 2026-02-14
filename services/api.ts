@@ -472,6 +472,24 @@ export const ApiService = {
     },
 
     // Admin ban/unban user
+    // Heartbeat — foydalanuvchi tirik ekanligini bildiradi
+    sendHeartbeat: async (userId: string): Promise<void> => {
+        try {
+            await request(`/users/${userId}/heartbeat`, { method: 'POST' });
+        } catch (error) {
+            // Silent fail
+        }
+    },
+
+    // Offline qilish
+    goOffline: async (userId: string): Promise<void> => {
+        try {
+            await request(`/users/${userId}/offline`, { method: 'POST' });
+        } catch (error) {
+            // Silent fail
+        }
+    },
+
     banUser: async (userId: string, data: { action: 'ban' | 'unban'; reason?: string; duration?: string }): Promise<any> => {
         return await request(`/users/${userId}/ban`, {
             method: 'POST',

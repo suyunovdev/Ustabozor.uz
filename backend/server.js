@@ -52,6 +52,7 @@ const authLimiter = rateLimit({
 });
 
 app.use(bodyParser.json());
+app.use(bodyParser.text({ type: 'text/plain' })); // sendBeacon uchun
 
 // --- ROUTES ---
 const authRoutes = require('./routes/auth');

@@ -222,6 +222,45 @@ const App = () => {
     localStorage.setItem('currentUser', JSON.stringify(updatedUser));
   };
 
+  // Heartbeat — har 2 daqiqada "men tirikman" signali + sahifa yopilganda offline
+  useEffect(() => {
+    if (!user) return;
+
+    // Heartbeat yuborish
+    const heartbeat = setInterval(() => {
+      ApiService.sendHeartbeat(user.id);
+    }, 2 * 60 * 1000); // Har 2 daqiqada
+
+    // Darhol birinchi heartbeat
+    ApiService.sendHeartbeat(user.id);
+
+    // Sahifa yopilganda offline qilish
+    const handleBeforeUnload = () => {
+      // sendBeacon ishonchli — brauzer yopilayotganda ham yuboriladi
+      const url = `${(import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api'}/users/${user.id}/offline`;
+      navigator.sendBeacon(url, JSON.stringify({}));
+    };
+
+    // Visibility change — tab yopilganda
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        const url = `${(import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api'}/users/${user.id}/offline`;
+        navigator.sendBeacon(url, JSON.stringify({}));
+      } else if (document.visibilityState === 'visible') {
+        ApiService.sendHeartbeat(user.id);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(heartbeat);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user?.id]);
+
   const role = user?.role || null;
 
   return (

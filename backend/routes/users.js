@@ -151,6 +151,42 @@ router.put('/:id/online', async (req, res) => {
     }
 });
 
+// Heartbeat — foydalanuvchi tirik ekanligini bildiradi
+router.post('/:id/heartbeat', async (req, res) => {
+    try {
+        const docRef = usersRef().doc(req.params.id);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        await docRef.update({
+            isOnline: true,
+            lastSeen: new Date().toISOString()
+        });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Offline qilish — sahifa yopilganda
+router.post('/:id/offline', async (req, res) => {
+    try {
+        const docRef = usersRef().doc(req.params.id);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        await docRef.update({
+            isOnline: false,
+            lastSeen: new Date().toISOString()
+        });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Soft delete user (bazadan o'chirmaydi, faqat isDeleted: true qo'yadi)
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
