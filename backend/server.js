@@ -11,8 +11,15 @@ const PORT = process.env.PORT || 5000;
 initializeFirebase();
 
 // Middleware
+const allowedOrigins = (process.env.FRONTEND_URL || '*').split(',').map(s => s.trim());
 const corsOptions = {
-    origin: process.env.FRONTEND_URL || '*',
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('CORS not allowed'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
