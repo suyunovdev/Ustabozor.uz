@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const { usersRef } = require('../models/User');
 const { docToObj, withTimestamps } = require('../models/firestore');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'ishtop-secret-key-2026';
+const JWT_EXPIRES_IN = '7d';
 
 // Login
 router.post('/login', async (req, res) => {
@@ -11,20 +16,42 @@ router.post('/login', async (req, res) => {
 
         const snapshot = await usersRef()
             .where('email', '==', email)
-            .where('password', '==', password)
             .limit(1)
             .get();
 
-        if (!snapshot.empty) {
-            const user = docToObj(snapshot.docs[0]);
-            console.log('Login success');
-            res.json(user);
-        } else {
-            res.status(401).json({ message: 'Email yoki parol noto\'g\'ri' });
+        if (snapshot.empty) {
+            return res.status(401).json({ message: 'Email yoki parol noto\'g\'ri' });
         }
+
+        const userDoc = snapshot.docs[0];
+        const userData = userDoc.data();
+
+        // Eski parollar uchun (hashing qo'shilmasdan oldingi) va yangi parollar uchun
+        let isValidPassword = false;
+        if (userData.password && userData.password.startsWith('$2a$')) {
+            // Hashed parol — bcrypt bilan tekshirish
+            isValidPassword = await bcrypt.compare(password, userData.password);
+        } else {
+            // Eski plaintext parol — tekshirib, hashlab yangilash
+            isValidPassword = (userData.password === password);
+            if (isValidPassword) {
+                const hashedPassword = await bcrypt.hash(password, 10);
+                await userDoc.ref.update({ password: hashedPassword });
+            }
+        }
+
+        if (!isValidPassword) {
+            return res.status(401).json({ message: 'Email yoki parol noto\'g\'ri' });
+        }
+
+        const user = docToObj(userDoc);
+        const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+        console.log('Login success');
+        res.json({ ...user, token });
     } catch (error) {
         console.error('Login error:', error.message);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Server xatosi' });
     }
 });
 
@@ -42,12 +69,14 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ message: 'Bu email allaqachon ro\'yxatdan o\'tgan' });
         }
 
+        const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
         const userData = {
             name: req.body.name || '',
             surname: req.body.surname || '',
             phone: req.body.phone || '',
             email: req.body.email,
-            password: req.body.password,
+            password: hashedPassword,
             role: (req.body.role === 'ADMIN') ? 'CUSTOMER' : (req.body.role || 'CUSTOMER'),
             avatar: req.body.avatar || '',
             balance: 0,
@@ -63,11 +92,14 @@ router.post('/register', async (req, res) => {
 
         const docRef = await usersRef().add(withTimestamps(userData));
         const newDoc = await docRef.get();
+        const user = docToObj(newDoc);
+        const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
         console.log('Register success');
-        res.json(docToObj(newDoc));
+        res.json({ ...user, token });
     } catch (error) {
         console.error('Register error:', error.message);
-        res.status(400).json({ message: error.message });
+        res.status(400).json({ message: 'Server xatosi' });
     }
 });
 

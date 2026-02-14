@@ -209,6 +209,7 @@ const App = () => {
     setUser(null);
     sessionStorage.removeItem('currentUser');
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('authToken');
     // Clear any session data for complete cleanup
     sessionStorage.clear();
   };

@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const bodyParser = require('body-parser');
 const { initializeFirebase } = require('./config/db');
 
@@ -10,7 +12,28 @@ const PORT = process.env.PORT || 5000;
 // Initialize Firebase
 initializeFirebase();
 
-// Middleware
+// Security headers
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: false // SPA uchun o'chirildi
+}));
+
+// Rate limiting — umumiy
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 daqiqa
+    max: 200, // har 15 daqiqada 200 ta so'rov
+    message: { message: 'Juda ko\'p so\'rov. Biroz kuting.' }
+});
+app.use(generalLimiter);
+
+// Rate limiting — login/register uchun qattiqroq
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 daqiqa
+    max: 10, // har 15 daqiqada 10 ta urinish
+    message: { message: 'Juda ko\'p urinish. 15 daqiqadan keyin qaytadan urinib ko\'ring.' }
+});
+
+// CORS
 const allowedOrigins = (process.env.FRONTEND_URL || '*').split(',').map(s => s.trim());
 const corsOptions = {
     origin: function (origin, callback) {
@@ -35,7 +58,7 @@ const chatsRoutes = require('./routes/chats');
 const messagesRoutes = require('./routes/messages');
 const notificationsRoutes = require('./routes/notifications');
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/chats', chatsRoutes);

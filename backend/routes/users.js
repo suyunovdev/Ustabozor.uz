@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { usersRef } = require('../models/User');
 const { docToObj, queryToArray, withUpdatedAt, FieldValue } = require('../models/firestore');
 const { getBucket } = require('../config/db');
+const { optionalAuth, requireAuth, requireAdmin } = require('../middleware/auth');
 
 // Configure Multer for memory storage (Firebase Storage upload)
 const upload = multer({ storage: multer.memoryStorage() });
@@ -143,7 +144,7 @@ router.put('/:id/online', async (req, res) => {
 });
 
 // Delete user
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
         const docRef = usersRef().doc(req.params.id);
         const doc = await docRef.get();
@@ -160,7 +161,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Admin ban/unban user
-router.post('/:id/ban', async (req, res) => {
+router.post('/:id/ban', requireAuth, requireAdmin, async (req, res) => {
     try {
         const { action, reason, duration } = req.body;
         if (!action || !['ban', 'unban'].includes(action)) {

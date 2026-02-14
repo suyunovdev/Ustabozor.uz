@@ -133,6 +133,19 @@ const setCachedData = (key: string, data: any) => {
     localCache.set(key, { data, timestamp: Date.now() });
 };
 
+// --- JWT TOKEN ---
+const getToken = (): string | null => {
+    return localStorage.getItem('authToken');
+};
+
+export const setToken = (token: string | null) => {
+    if (token) {
+        localStorage.setItem('authToken', token);
+    } else {
+        localStorage.removeItem('authToken');
+    }
+};
+
 // --- REQUEST HELPER ---
 async function request<T>(path: string, options: RequestInit = {}, useCache = false): Promise<T> {
     const url = `${API_URL}${path}`;
@@ -143,11 +156,13 @@ async function request<T>(path: string, options: RequestInit = {}, useCache = fa
         if (cached) return cached;
     }
 
+    const token = getToken();
     try {
         const res = await fetch(url, {
             ...options,
             headers: {
                 ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                 ...options.headers,
             },
         });
@@ -180,6 +195,7 @@ export const ApiService = {
                 method: 'POST',
                 body: JSON.stringify({ email, password })
             });
+            if (data.token) setToken(data.token);
             return transformUser(data);
         } catch (error) {
             return null;
@@ -192,6 +208,7 @@ export const ApiService = {
                 method: 'POST',
                 body: JSON.stringify(userData)
             });
+            if (data.token) setToken(data.token);
             return transformUser(data);
         } catch (error) {
             return null;
