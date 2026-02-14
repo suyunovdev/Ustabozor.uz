@@ -3,8 +3,13 @@ const router = express.Router();
 const multer = require('multer');
 const crypto = require('crypto');
 const { usersRef } = require('../models/User');
+const { ordersRef } = require('../models/Order');
+const { chatsRef } = require('../models/Chat');
+const { messagesRef } = require('../models/Message');
+const { notificationsRef } = require('../models/Notification');
+const { reportsRef } = require('../models/Report');
 const { docToObj, queryToArray, withUpdatedAt, FieldValue } = require('../models/firestore');
-const { getBucket } = require('../config/db');
+const { getBucket, getDb } = require('../config/db');
 const { optionalAuth, requireAuth, requireAdmin } = require('../middleware/auth');
 
 // Configure Multer for memory storage (Firebase Storage upload)
@@ -187,22 +192,85 @@ router.post('/:id/offline', async (req, res) => {
     }
 });
 
-// Soft delete user (bazadan o'chirmaydi, faqat isDeleted: true qo'yadi)
+// Soft delete user + cascading delete (bog'liq ma'lumotlarni tozalash)
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
-        const docRef = usersRef().doc(req.params.id);
+        const id = req.params.id;
+        const docRef = usersRef().doc(id);
         const doc = await docRef.get();
 
         if (!doc.exists) {
             return res.status(404).json({ message: 'User not found' });
         }
 
+        // 1. Soft delete user
         await docRef.update({
             isDeleted: true,
             deletedAt: new Date().toISOString()
         });
-        res.json({ success: true, message: 'Foydalanuvchi o\'chirildi' });
+
+        // 2. Buyurtmalarni bekor qilish (PENDING/ACCEPTED — customer sifatida)
+        const customerOrders = await ordersRef().where('customerId', '==', id).get();
+        for (const orderDoc of customerOrders.docs) {
+            const data = orderDoc.data();
+            if (['PENDING', 'ACCEPTED'].includes(data.status)) {
+                await orderDoc.ref.update({ status: 'CANCELLED', cancelledAt: new Date().toISOString() });
+            }
+        }
+
+        // Worker sifatida — buyurtmani PENDING ga qaytarish (boshqa worker olishi uchun)
+        const workerOrders = await ordersRef().where('workerId', '==', id).get();
+        for (const orderDoc of workerOrders.docs) {
+            const data = orderDoc.data();
+            if (['ACCEPTED', 'IN_PROGRESS'].includes(data.status)) {
+                await orderDoc.ref.update({ workerId: null, status: 'PENDING' });
+            }
+        }
+
+        // 3. Chatlar va xabarlarni o'chirish
+        const chats = await chatsRef().where('participants', 'array-contains', id).get();
+        for (const chatDoc of chats.docs) {
+            const msgs = await messagesRef().where('chatId', '==', chatDoc.id).get();
+            const db = getDb();
+            // Firestore batch max 500, katta chatlar uchun bo'lib yuborish
+            const batchSize = 400;
+            for (let i = 0; i < msgs.docs.length; i += batchSize) {
+                const batch = db.batch();
+                msgs.docs.slice(i, i + batchSize).forEach(m => batch.delete(m.ref));
+                if (i + batchSize >= msgs.docs.length) {
+                    batch.delete(chatDoc.ref); // Oxirgi batchda chat documentni ham o'chirish
+                }
+                await batch.commit();
+            }
+            // Agar xabar bo'lmasa, faqat chatni o'chirish
+            if (msgs.docs.length === 0) {
+                await chatDoc.ref.delete();
+            }
+        }
+
+        // 4. Bildirishnomalarni o'chirish
+        const notifs = await notificationsRef().where('userId', '==', id).get();
+        if (!notifs.empty) {
+            const db = getDb();
+            const batch = db.batch();
+            notifs.docs.forEach(n => batch.delete(n.ref));
+            await batch.commit();
+        }
+
+        // 5. Reportlarni o'chirish (foydalanuvchi yuborgan)
+        const reports = await reportsRef().where('reporterId', '==', id).get();
+        if (!reports.empty) {
+            const db = getDb();
+            const batch = db.batch();
+            reports.docs.forEach(r => batch.delete(r.ref));
+            await batch.commit();
+        }
+
+        console.log(`User ${id} deleted with cascade: ${customerOrders.size + workerOrders.size} orders, ${chats.size} chats, ${notifs.size} notifications, ${reports.size} reports`);
+
+        res.json({ success: true, message: 'Foydalanuvchi va bog\'liq ma\'lumotlar o\'chirildi' });
     } catch (error) {
+        console.error('Cascade delete error:', error);
         res.status(500).json({ message: error.message });
     }
 });

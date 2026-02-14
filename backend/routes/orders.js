@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { ordersRef } = require('../models/Order');
+const { notificationsRef } = require('../models/Notification');
 const { docToObj, queryToArray, withTimestamps, withUpdatedAt, populateUsers, FieldValue } = require('../models/firestore');
 const { getDb } = require('../config/db');
 const cache = require('../utils/cache');
@@ -286,20 +287,33 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-// Delete order
+// Delete order + cascading delete (bog'liq bildirishnomalarni tozalash)
 router.delete('/:id', async (req, res) => {
     try {
-        const docRef = ordersRef().doc(req.params.id);
+        const id = req.params.id;
+        const docRef = ordersRef().doc(id);
         const doc = await docRef.get();
 
         if (!doc.exists) {
             return res.status(404).json({ message: 'Order not found' });
         }
 
+        // 1. Buyurtmaga tegishli bildirishnomalarni o'chirish
+        const notifs = await notificationsRef().where('relatedId', '==', id).get();
+        if (!notifs.empty) {
+            const db = getDb();
+            const batch = db.batch();
+            notifs.docs.forEach(n => batch.delete(n.ref));
+            await batch.commit();
+        }
+
+        // 2. Order documentni o'chirish
         await docRef.delete();
-        cache.delete(`order:${req.params.id}`);
+        cache.delete(`order:${id}`);
         invalidateOrderCache();
-        res.json({ success: true, message: 'Order deleted' });
+
+        console.log(`Order ${id} deleted with cascade: ${notifs.size} notifications`);
+        res.json({ success: true, message: 'Buyurtma va bog\'liq ma\'lumotlar o\'chirildi' });
     } catch (error) {
         console.error('Error deleting order:', error);
         res.status(500).json({ message: error.message });
