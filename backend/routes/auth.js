@@ -74,6 +74,18 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ message: 'Bu email allaqachon ro\'yxatdan o\'tgan' });
         }
 
+        // Telefon raqam bo'yicha ham tekshirish
+        if (req.body.phone) {
+            const phoneExists = await usersRef()
+                .where('phone', '==', req.body.phone)
+                .limit(1)
+                .get();
+
+            if (!phoneExists.empty) {
+                return res.status(400).json({ message: 'Bu telefon raqam allaqachon ro\'yxatdan o\'tgan' });
+            }
+        }
+
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
 
         const userData = {
