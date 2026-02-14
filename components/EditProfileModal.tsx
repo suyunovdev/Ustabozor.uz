@@ -120,7 +120,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                         <UserIcon className="text-blue-500" size={24} />
                         Profilni Tahrirlash
                     </h2>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                    <button onClick={onClose} aria-label="Yopish" className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
                         <X size={20} className="text-gray-500 dark:text-gray-400" />
                     </button>
                 </div>

@@ -84,6 +84,7 @@ export const JobsStatsModal: React.FC<JobsStatsModalProps> = ({ isOpen, onClose,
                 <div className="relative bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 p-6 pb-8">
                     <button
                         onClick={onClose}
+                        aria-label="Yopish"
                         className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
                     >
                         <X size={20} className="text-white" />

@@ -175,6 +175,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled, r
       <input
         type="file"
         ref={fileInputRef}
+        aria-label="Fayl yuklash"
         className="hidden"
         onChange={handleFileSelect}
       />
@@ -317,7 +318,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled, r
         <div className="flex items-center gap-3 p-3">
           <button
             onClick={cancelRecording}
-            className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 text-red-500 flex items-center justify-center hover:bg-red-200 dark:hover:bg-red-900/50 transition-all"
+            aria-label="Yozishni bekor qilish"
+            className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 text-red-500 flex items-center justify-center hover:bg-red-200 dark:hover:bg-red-900/50 transition-all"
           >
             <X size={18} />
           </button>
@@ -337,6 +339,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled, r
 
           <button
             onClick={stopRecording}
+            aria-label="Yozishni to'xtatib yuborish"
             className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
           >
             <Send size={16} />

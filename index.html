@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IshTop - Ishchilar va Mijozlar Platformasi</title>
   <meta name="description" content="IshTop — O'zbekistondagi eng qulay ish topish va ishchi yollash platformasi. Malakali ustalar, tezkor buyurtmalar, ishonchli xizmat." />
   <meta name="keywords" content="ish topish, ishchi yollash, usta, mardikor, O'zbekiston, IshTop, ustabozor, ish beruvchi, freelancer" />
@@ -30,6 +30,11 @@
 
   <link rel="icon" href="/logo-Photoroom.png" />
   <link rel="apple-touch-icon" href="/logo-Photoroom.png" />
+
+  <!-- Preconnect for faster loading -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -53,6 +58,25 @@
   <!-- Leaflet CSS for maps -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "IshTop",
+    "description": "O'zbekistondagi eng qulay ish topish va ishchi yollash platformasi",
+    "url": "https://ishtop.kidir.net",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "inLanguage": "uz",
+    "author": {
+      "@type": "Organization",
+      "name": "IshTop"
+    }
+  }
+  </script>
+
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -96,24 +120,6 @@
 </script>
 
 </head>
-
-<!-- Structured Data -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  "name": "IshTop",
-  "description": "O'zbekistondagi eng qulay ish topish va ishchi yollash platformasi",
-  "url": "https://ishtop.kidir.net",
-  "applicationCategory": "BusinessApplication",
-  "operatingSystem": "Web",
-  "inLanguage": "uz",
-  "author": {
-    "@type": "Organization",
-    "name": "IshTop"
-  }
-}
-</script>
 
 <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300">
   <div id="root"></div>

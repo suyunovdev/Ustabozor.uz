@@ -273,6 +273,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
                             </div>
                             <button
                                 onClick={onClose}
+                                aria-label="Yopish"
                                 className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all active:scale-90"
                             >
                                 <X size={20} className="text-gray-400" />
@@ -480,8 +481,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
 
                             {/* Amount */}
                             <div className="bg-slate-800/60 rounded-2xl p-5 border border-slate-700/50">
-                                <label className="text-sm text-slate-400 font-semibold mb-3 block">Summa</label>
+                                <label htmlFor="deposit-amount" className="text-sm text-slate-400 font-semibold mb-3 block">Summa</label>
                                 <input
+                                    id="deposit-amount"
                                     type="number"
                                     value={amount}
                                     onChange={(e) => setAmount(e.target.value)}
@@ -587,8 +589,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
 
                             {/* Amount */}
                             <div className="bg-slate-800/60 rounded-2xl p-5 border border-slate-700/50">
-                                <label className="text-sm text-slate-400 font-semibold mb-3 block">Yechish summasi</label>
+                                <label htmlFor="withdraw-amount" className="text-sm text-slate-400 font-semibold mb-3 block">Yechish summasi</label>
                                 <input
+                                    id="withdraw-amount"
                                     type="number"
                                     value={amount}
                                     onChange={(e) => setAmount(e.target.value)}
@@ -793,8 +796,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
 
                         {/* Number */}
                         <div className="mb-4">
-                            <label className="text-sm text-slate-400 font-semibold mb-2 block">Karta raqami</label>
+                            <label htmlFor="card-number" className="text-sm text-slate-400 font-semibold mb-2 block">Karta raqami</label>
                             <input
+                                id="card-number"
                                 type="text"
                                 value={cardNumber}
                                 onChange={(e) => setCardNumber(formatCard(e.target.value))}
@@ -806,8 +810,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
 
                         {/* Expiry */}
                         <div className="mb-6">
-                            <label className="text-sm text-slate-400 font-semibold mb-2 block">Amal qilish muddati</label>
+                            <label htmlFor="card-expiry" className="text-sm text-slate-400 font-semibold mb-2 block">Amal qilish muddati</label>
                             <input
+                                id="card-expiry"
                                 type="text"
                                 value={cardExpiry}
                                 onChange={(e) => setCardExpiry(formatExp(e.target.value))}

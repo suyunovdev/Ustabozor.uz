@@ -94,7 +94,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, 
                             <p className="text-xs text-white/80">{unreadCount} ta o'qilmagan</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                    <button onClick={onClose} aria-label="Yopish" className="p-2 hover:bg-white/20 rounded-full transition-colors">
                         <X size={20} />
                     </button>
                 </div>
@@ -173,8 +173,8 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, 
                                     {!notification.isRead && (
                                         <button
                                             onClick={() => handleMarkAsRead(notification.id)}
-                                            className="p-1.5 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
-                                            title="O'qilgan deb belgilash"
+                                            className="p-2.5 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
+                                            aria-label="O'qilgan deb belgilash"
                                         >
                                             <Check size={14} />
                                         </button>

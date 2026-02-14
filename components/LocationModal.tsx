@@ -105,6 +105,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
                     <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white sticky top-0 z-10">
                         <button
                             onClick={onClose}
+                            aria-label="Yopish"
                             className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
                         >
                             <X size={20} />

@@ -188,6 +188,7 @@ export const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onClose}
+                            aria-label="Yopish"
                             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                         >
                             <X size={20} className="text-gray-600 dark:text-gray-400" />
@@ -252,6 +253,7 @@ export const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
                     <button
                         onClick={handleGetCurrentLocation}
                         disabled={isGettingCurrentLocation}
+                        aria-label="Hozirgi joylashuvni aniqlash"
                         className="absolute bottom-24 right-4 z-[1000] p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
                     >
                         {isGettingCurrentLocation ? (

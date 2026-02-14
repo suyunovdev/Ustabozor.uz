@@ -119,6 +119,7 @@ export const NavigationModal: React.FC<NavigationModalProps> = ({
                 <div className="relative bg-gradient-to-br from-blue-500 to-indigo-600 p-6 text-white">
                     <button
                         onClick={onClose}
+                        aria-label="Yopish"
                         className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
                     >
                         <X size={20} />
