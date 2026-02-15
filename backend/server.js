@@ -43,7 +43,7 @@ app.use(helmet({
 // Rate limiting — umumiy (OPTIONS so'rovlarni o'tkazib yuborish)
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 daqiqa
-    max: 300, // har 15 daqiqada 300 ta so'rov
+    max: 1000, // har 15 daqiqada 1000 ta so'rov (SPA polling + navigation)
     message: { message: 'Juda ko\'p so\'rov. Biroz kuting.' },
     skip: (req) => req.method === 'OPTIONS'
 });

@@ -170,8 +170,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, logout, toggleTh
     // Initial check
     checkNotifications();
 
-    // Poll every 30 seconds
-    const intervalId = setInterval(checkNotifications, 30000);
+    // Poll every 60 seconds
+    const intervalId = setInterval(checkNotifications, 60000);
 
     return () => clearInterval(intervalId);
   }, [user]);
