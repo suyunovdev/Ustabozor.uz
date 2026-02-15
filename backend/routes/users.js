@@ -11,6 +11,14 @@ const { reportsRef } = require('../models/Report');
 const { docToObj, queryToArray, withUpdatedAt, FieldValue } = require('../models/firestore');
 const { getBucket, getDb } = require('../config/db');
 const { optionalAuth, requireAuth, requireAdmin } = require('../middleware/auth');
+const cache = require('../utils/cache');
+
+const USERS_CACHE_TTL = 60000; // 1 daqiqa
+const USERS_NAMESPACE = 'users';
+
+const invalidateUsersCache = () => {
+    cache.deleteNamespace(USERS_NAMESPACE);
+};
 
 // Configure Multer for memory storage (Firebase Storage upload)
 const upload = multer({ storage: multer.memoryStorage() });
@@ -20,6 +28,11 @@ router.get('/', async (req, res) => {
     try {
         const role = req.query.role;
         const includeDeleted = req.query.includeDeleted === 'true';
+        const cacheKey = `users:list:${role || 'all'}:${includeDeleted}`;
+
+        const cached = cache.get(cacheKey);
+        if (cached) return res.json(cached);
+
         let query = usersRef();
 
         if (role) {
@@ -34,6 +47,7 @@ router.get('/', async (req, res) => {
             users = users.filter(u => !u.isDeleted);
         }
 
+        cache.set(cacheKey, users, { ttl: USERS_CACHE_TTL, namespace: USERS_NAMESPACE });
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -43,9 +57,15 @@ router.get('/', async (req, res) => {
 // Get user by ID
 router.get('/:id', async (req, res) => {
     try {
+        const cacheKey = `users:${req.params.id}`;
+        const cached = cache.get(cacheKey);
+        if (cached) return res.json(cached);
+
         const doc = await usersRef().doc(req.params.id).get();
         if (doc.exists) {
-            res.json(docToObj(doc));
+            const user = docToObj(doc);
+            cache.set(cacheKey, user, { ttl: USERS_CACHE_TTL, namespace: USERS_NAMESPACE });
+            res.json(user);
         } else {
             res.status(404).json({ message: 'User not found' });
         }
@@ -131,6 +151,7 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
 
         await docRef.update(withUpdatedAt(updatedData));
         const updated = await docRef.get();
+        invalidateUsersCache();
         res.json(docToObj(updated));
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -150,6 +171,7 @@ router.put('/:id/online', async (req, res) => {
         const currentStatus = doc.data().isOnline || false;
         await docRef.update(withUpdatedAt({ isOnline: !currentStatus }));
         const updated = await docRef.get();
+        invalidateUsersCache();
         res.json(docToObj(updated));
     } catch (error) {
         res.status(500).json({ message: error.message });
