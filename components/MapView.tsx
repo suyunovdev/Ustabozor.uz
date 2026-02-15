@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -31,6 +31,19 @@ const createCustomIcon = (color: string) => {
     });
 };
 
+// User location — pulsating blue dot
+const userLocationIcon = L.divIcon({
+    className: 'user-location-marker',
+    html: `<div style="position:relative;width:20px;height:20px;">
+        <div style="position:absolute;inset:0;background:#3B82F6;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5);z-index:2;"></div>
+        <div style="position:absolute;inset:-6px;background:rgba(59,130,246,0.2);border-radius:50%;z-index:1;animation:pulse 2s ease-out infinite;"></div>
+    </div>
+    <style>@keyframes pulse{0%{transform:scale(1);opacity:0.6}100%{transform:scale(2.5);opacity:0}}</style>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -10],
+});
+
 export const jobIcon = createCustomIcon('#3B82F6'); // Blue
 export const userIcon = createCustomIcon('#10B981'); // Green
 export const workerIcon = createCustomIcon('#8B5CF6'); // Purple
@@ -55,12 +68,52 @@ interface MapViewProps {
     showUserLocation?: boolean;
 }
 
-// Component to update map center
-const MapUpdater: React.FC<{ center: [number, number] }> = ({ center }) => {
+// Koordinata yaroqliligini tekshirish (0,0 yaroqsiz)
+const isValidCoordinate = (lat: number, lng: number): boolean => {
+    return lat !== 0 && lng !== 0 && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+};
+
+// Component to fit map to all markers + user location
+const MapFitter: React.FC<{ markers: MapMarker[]; userLocation: [number, number] | null }> = ({ markers, userLocation }) => {
     const map = useMap();
+
     useEffect(() => {
-        map.setView(center, map.getZoom());
-    }, [center, map]);
+        const points: L.LatLngExpression[] = [];
+
+        if (userLocation) {
+            points.push(userLocation);
+        }
+
+        markers.forEach(m => {
+            if (isValidCoordinate(m.position[0], m.position[1])) {
+                points.push(m.position);
+            }
+        });
+
+        if (points.length === 0) return;
+
+        if (points.length === 1) {
+            map.setView(points[0], 14);
+        } else {
+            const bounds = L.latLngBounds(points);
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+        }
+    }, [markers.length, userLocation, map]);
+
+    return null;
+};
+
+// Map resize handler — leaflet xarita hajmini to'g'ri hisoblashi uchun
+const MapResizer: React.FC = () => {
+    const map = useMap();
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            map.invalidateSize();
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [map]);
+
     return null;
 };
 
@@ -78,22 +131,18 @@ export const MapView: React.FC<MapViewProps> = ({
         if (showUserLocation) {
             // Avval saqlangan joylashuvni tekshirish
             const savedLocation = getSavedLocation();
-            if (savedLocation) {
+            if (savedLocation && isValidCoordinate(savedLocation.lat, savedLocation.lng)) {
                 setUserLocation([savedLocation.lat, savedLocation.lng]);
             } else if (navigator.geolocation) {
-                // Saqlangan joylashuv yo'q bo'lsa GPS dan olishga urinish
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         setUserLocation([pos.coords.latitude, pos.coords.longitude]);
                     },
                     () => {
-                        // GPS ham ishlamasa default Toshkent
-                        setUserLocation([41.311081, 69.240562]);
-                    }
+                        // GPS ham ishlamasa — default
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
                 );
-            } else {
-                // Geolocation qo'llab-quvvatlanmasa default Toshkent
-                setUserLocation([41.311081, 69.240562]);
             }
         }
     }, [showUserLocation]);
@@ -110,34 +159,43 @@ export const MapView: React.FC<MapViewProps> = ({
         }
     };
 
+    // Yaroqli markerlarni filter qilish
+    const validMarkers = markers.filter(m => isValidCoordinate(m.position[0], m.position[1]));
+
+    // Map center — user location yoki birinchi marker yoki default
+    const mapCenter = userLocation || (validMarkers.length > 0 ? validMarkers[0].position : center);
+
     return (
         <div style={{ height, width: '100%' }} className="rounded-xl overflow-hidden shadow-lg">
             <MapContainer
-                center={userLocation || center}
+                center={mapCenter}
                 zoom={zoom}
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom={true}
+                zoomControl={false}
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                {userLocation && <MapUpdater center={userLocation} />}
+                <MapResizer />
+                <MapFitter markers={validMarkers} userLocation={userLocation} />
 
-                {/* User location marker */}
+                {/* Zoom control o'ng pastda */}
+                {/* User location marker — pulsating blue dot */}
                 {showUserLocation && userLocation && (
-                    <Marker position={userLocation} icon={userIcon}>
+                    <Marker position={userLocation} icon={userLocationIcon}>
                         <Popup>
-                            <div className="text-center">
-                                <strong>📍 Sizning joylashuvingiz</strong>
+                            <div className="text-center font-medium">
+                                Sizning joylashuvingiz
                             </div>
                         </Popup>
                     </Marker>
                 )}
 
                 {/* Job/Worker markers */}
-                {markers.map((marker) => (
+                {validMarkers.map((marker) => (
                     <Marker
                         key={marker.id}
                         position={marker.position}
