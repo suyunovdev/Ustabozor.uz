@@ -21,6 +21,9 @@ const corsOptions = {
     origin: function (origin, callback) {
         if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
             callback(null, true);
+        } else if (origin && origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+            // Vercel preview deployment'larga ruxsat berish
+            callback(null, true);
         } else {
             callback(new Error('CORS not allowed'));
         }

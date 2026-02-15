@@ -33,6 +33,7 @@ function requireAuth(req, res, next) {
 
 // Faqat admin uchun
 function requireAdmin(req, res, next) {
+    console.log('requireAdmin check:', { userId: req.user?.id, role: req.user?.role });
     if (!req.user || req.user.role !== 'ADMIN') {
         return res.status(403).json({ message: 'Faqat admin uchun' });
     }
