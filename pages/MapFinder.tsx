@@ -50,8 +50,11 @@ export const MapFinder = () => {
         loadData();
     }, [loadData]);
 
+    // Faqat online ishchilar va faqat PENDING buyurtmalar
+    const onlineWorkers = workers.filter(w => w.isOnline);
+
     const markers: MapMarker[] = viewType === 'workers'
-        ? workers
+        ? onlineWorkers
             .filter(w => isValidLocation(w.location?.lat, w.location?.lng))
             .map(worker => ({
                 id: worker.id,
@@ -72,7 +75,7 @@ export const MapFinder = () => {
                 type: 'job' as const,
             }));
 
-    const totalCount = viewType === 'workers' ? workers.length : orders.length;
+    const totalCount = viewType === 'workers' ? onlineWorkers.length : orders.length;
     const mapCount = markers.length;
 
     // Popup yoki marker bosilganda — to'g'ridan-to'g'ri sahifaga o'tish
@@ -165,8 +168,12 @@ export const MapFinder = () => {
                                 <p className="font-semibold text-gray-900 dark:text-white text-sm">Joylashuv topilmadi</p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                     {viewType === 'workers'
-                                        ? `${totalCount} ta ishchi bor, lekin hech birining joylashuvi aniqlanmagan`
-                                        : `${totalCount} ta ish bor, lekin hech birining joylashuvi aniqlanmagan`
+                                        ? totalCount === 0
+                                            ? 'Hozirda online ishchi yo\'q'
+                                            : `${totalCount} ta online ishchi bor, lekin joylashuvi aniqlanmagan`
+                                        : totalCount === 0
+                                            ? 'Hozirda kutilayotgan buyurtma yo\'q'
+                                            : `${totalCount} ta buyurtma bor, lekin joylashuvi aniqlanmagan`
                                     }
                                 </p>
                             </div>
