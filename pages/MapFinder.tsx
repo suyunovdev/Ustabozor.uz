@@ -88,7 +88,7 @@ export const MapFinder = () => {
     }, [navigate]);
 
     return (
-        <div className="flex flex-col bg-gray-50 dark:bg-gray-950" style={{ height: 'calc(100vh - 4rem)' }}>
+        <div className="flex flex-col bg-gray-50 dark:bg-gray-950 absolute inset-0 bottom-16">
             {/* Header */}
             <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 z-20 shrink-0">
                 <div className="flex items-center justify-between p-3">
@@ -122,7 +122,7 @@ export const MapFinder = () => {
                         <Users size={15} />
                         Ishchilar
                         <span className={`text-xs px-1.5 py-0.5 rounded-full ${viewType === 'workers' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
-                            {mapCount}{mapCount < totalCount ? `/${totalCount}` : ''}
+                            {mapCount}
                         </span>
                     </button>
                     <button
@@ -135,7 +135,7 @@ export const MapFinder = () => {
                         <Briefcase size={15} />
                         Ishlar
                         <span className={`text-xs px-1.5 py-0.5 rounded-full ${viewType === 'jobs' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
-                            {mapCount}{mapCount < totalCount ? `/${totalCount}` : ''}
+                            {mapCount}
                         </span>
                     </button>
                 </div>
