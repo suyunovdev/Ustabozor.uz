@@ -22,6 +22,22 @@ interface Transaction {
     date: string;
 }
 
+// Raqamlarni chiroyli formatlash
+const formatMoney = (amount: number): string => {
+    if (amount === 0) return '0';
+    const abs = Math.abs(amount);
+    if (abs >= 1_000_000_000) {
+        return (amount / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + ' mlrd';
+    }
+    if (abs >= 1_000_000) {
+        return (amount / 1_000_000).toFixed(1).replace(/\.0$/, '') + ' mln';
+    }
+    if (abs >= 1_000) {
+        return (amount / 1_000).toFixed(1).replace(/\.0$/, '') + ' ming';
+    }
+    return amount.toLocaleString();
+};
+
 export const AdminFinance = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [users, setUsers] = useState<User[]>([]);
@@ -243,10 +259,11 @@ export const AdminFinance = () => {
             <div className="flex items-center justify-between relative">
                 <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">{label}</p>
-                    <div className="flex items-baseline gap-2">
-                        <p className="text-2xl font-black text-gray-900 dark:text-white">
-                            {prefix}{typeof value === 'number' ? value.toLocaleString() : value}{suffix}
+                    <div className="flex items-baseline gap-1 flex-wrap">
+                        <p className="text-xl font-black text-gray-900 dark:text-white whitespace-nowrap">
+                            {prefix}{typeof value === 'number' ? value.toLocaleString() : value}
                         </p>
+                        {suffix && <span className="text-sm font-semibold text-gray-400 dark:text-gray-500">{suffix}</span>}
                         {trend !== undefined && (
                             <span className={`text-xs font-bold flex items-center ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                 {trend >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
@@ -297,8 +314,8 @@ export const AdminFinance = () => {
                 <StatCard
                     icon={DollarSign}
                     label="Jami daromad"
-                    value={(totalRevenue / 1000000).toFixed(1)}
-                    suffix="M UZS"
+                    value={formatMoney(totalRevenue)}
+                    suffix=" UZS"
                     color="bg-gradient-to-br from-emerald-500 to-emerald-600"
                     subValue={`${completedOrders.length} ta buyurtma`}
                     trend={12}
@@ -306,8 +323,8 @@ export const AdminFinance = () => {
                 <StatCard
                     icon={Percent}
                     label="Komissiya (10%)"
-                    value={(totalCommission / 1000000).toFixed(2)}
-                    suffix="M UZS"
+                    value={formatMoney(totalCommission)}
+                    suffix=" UZS"
                     color="bg-gradient-to-br from-purple-500 to-purple-600"
                     subValue="Sof foyda"
                     trend={8}
@@ -315,16 +332,16 @@ export const AdminFinance = () => {
                 <StatCard
                     icon={Wallet}
                     label="Ishchilarga to'langan"
-                    value={(totalPayouts / 1000000).toFixed(1)}
-                    suffix="M UZS"
+                    value={formatMoney(totalPayouts)}
+                    suffix=" UZS"
                     color="bg-gradient-to-br from-blue-500 to-blue-600"
                     subValue="90% buyurtma summasi"
                 />
                 <StatCard
                     icon={Clock}
                     label="Kutilayotgan to'lovlar"
-                    value={(pendingRevenue / 1000000).toFixed(1)}
-                    suffix="M UZS"
+                    value={formatMoney(pendingRevenue)}
+                    suffix=" UZS"
                     color="bg-gradient-to-br from-yellow-500 to-yellow-600"
                     subValue={`${pendingOrders.length} ta buyurtma`}
                 />
@@ -354,8 +371,8 @@ export const AdminFinance = () => {
                 <StatCard
                     icon={XCircle}
                     label="Qaytarilgan"
-                    value={(cancelledRevenue / 1000).toFixed(0)}
-                    suffix="K UZS"
+                    value={formatMoney(cancelledRevenue)}
+                    suffix=" UZS"
                     color="bg-gradient-to-br from-red-500 to-red-600"
                     subValue="Bekor qilingan buyurtmalar"
                 />
