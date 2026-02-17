@@ -288,6 +288,14 @@ export const ApiService = {
     },
 
     // --- ORDERS ---
+    getOrderById: async (id: string): Promise<any> => {
+        try {
+            return await request<any>(`/orders/${id}`, {}, true, true);
+        } catch {
+            return null;
+        }
+    },
+
     getOrders: async (): Promise<Order[]> => {
         try {
             const data = await request<any[]>('/orders', {}, true);

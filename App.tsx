@@ -17,6 +17,7 @@ import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminFinance } from './pages/admin/AdminFinance';
 import { ChatPage } from './pages/ChatPage';
 import { MapFinder } from './pages/MapFinder';
+import { OrderDetail } from './pages/OrderDetail';
 import { TelegramRegister } from './pages/TelegramRegister';
 import { User, UserRole } from './types';
 import { ApiService } from './services/api';
@@ -325,6 +326,7 @@ const App = () => {
                         <Route path="/customer/create" element={<CreateOrder />} />
                         <Route path="/customer/orders" element={<MyOrders />} />
                         <Route path="/map" element={<MapFinder />} />
+                        <Route path="/orders/:id" element={<OrderDetail />} />
                         <Route path="/profile" element={<Profile user={user} logout={handleLogout} toggleTheme={toggleTheme} isDarkMode={isDarkMode} onUserUpdate={handleUserUpdate} />} />
                         <Route path="/chat" element={<ChatPage />} />
                         <Route path="*" element={<Navigate to="/customer/home" replace />} />
@@ -337,6 +339,7 @@ const App = () => {
                         <Route path="/worker/home" element={<JobFeed />} />
                         <Route path="/worker/orders" element={<MyJobs />} />
                         <Route path="/map" element={<MapFinder />} />
+                        <Route path="/orders/:id" element={<OrderDetail />} />
                         <Route path="/profile" element={<Profile user={user} logout={handleLogout} toggleTheme={toggleTheme} isDarkMode={isDarkMode} onUserUpdate={handleUserUpdate} />} />
                         <Route path="/chat" element={<ChatPage />} />
                         <Route path="*" element={<Navigate to="/worker/home" replace />} />
