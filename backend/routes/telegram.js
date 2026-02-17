@@ -9,6 +9,9 @@ const { docToObj, queryToArray, withTimestamps, withUpdatedAt } = require('../mo
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
+// Web App URL — FRONTEND_URL vergul bilan ajratilgan bo'lishi mumkin (CORS uchun), birinchisini olamiz
+const WEB_APP_URL = (process.env.FRONTEND_URL || 'https://ustabozor-uz-5wha.vercel.app').split(',')[0].trim();
+
 // --- HELPERS ---
 
 // Send message to Telegram user
@@ -233,7 +236,7 @@ async function handleBotRegistration(chatId, telegramId, firstName, text, messag
         const user = docToObj(await docRef.get());
         registrationState.delete(telegramId);
 
-        const webAppUrl = process.env.FRONTEND_URL || 'https://ustabozor-uz-5wha.vercel.app';
+        const webAppUrl = WEB_APP_URL;
         await sendMessage(chatId,
             `Muvaffaqiyatli ulandi!\n\n` +
             `Ism: <b>${user.name} ${user.surname || ''}</b>\n` +
@@ -304,7 +307,7 @@ async function handleBotRegistration(chatId, telegramId, firstName, text, messag
 }
 
 async function finishBotRegistration(chatId, telegramId, from, data) {
-    const webAppUrl = process.env.FRONTEND_URL || 'https://ustabozor-uz-5wha.vercel.app';
+    const webAppUrl = WEB_APP_URL;
 
     // Allaqachon bormi tekshirish
     const existing = await usersRef().where('telegramId', '==', telegramId).limit(1).get();
@@ -372,7 +375,7 @@ router.post('/webhook', async (req, res) => {
             const text = update.message.text;
             const firstName = update.message.from?.first_name || 'Foydalanuvchi';
             const telegramId = update.message.from?.id;
-            const webAppUrl = process.env.FRONTEND_URL || 'https://ustabozor-uz-5wha.vercel.app';
+            const webAppUrl = WEB_APP_URL;
 
             // Bot orqali ro'yxatdan o'tish — step handler
             const regState = registrationState.get(telegramId);
@@ -876,12 +879,11 @@ router.get('/setup-commands', async (req, res) => {
 router.get('/setup-menu-button', async (req, res) => {
     if (!TELEGRAM_BOT_TOKEN) return res.status(500).json({ error: 'Token yo\'q' });
     try {
-        const frontendUrl = process.env.FRONTEND_URL || 'https://ustabozor-uz-5wha.vercel.app';
         const response = await fetch(`${TELEGRAM_API_URL}/setChatMenuButton`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                menu_button: { type: 'web_app', text: 'Ilovani ochish', web_app: { url: frontendUrl } }
+                menu_button: { type: 'web_app', text: 'Ilovani ochish', web_app: { url: WEB_APP_URL } }
             })
         });
         const data = await response.json();
@@ -907,7 +909,7 @@ router.get('/webhook-info', async (req, res) => {
 router.get('/info', async (req, res) => {
     res.json({
         bot_name: 'IshTop Bot',
-        web_app_url: process.env.FRONTEND_URL,
+        web_app_url: WEB_APP_URL,
         description: 'IshTop - Ishchilar va Mijozlar platformasi'
     });
 });
