@@ -42,9 +42,9 @@ const MobileNav = ({ role }: { role: UserRole }) => {
           </Link>
         )}
 
-        <Link to={role === UserRole.CUSTOMER ? "/customer/create" : "/worker/home"} className="flex flex-col items-center justify-center w-full h-full -mt-5">
+        <Link to={role === UserRole.CUSTOMER ? "/customer/create" : "/map"} className="flex flex-col items-center justify-center w-full h-full -mt-5">
           <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 rounded-full shadow-lg shadow-blue-500/30 text-white ring-4 ring-white dark:ring-gray-900 transition-transform active:scale-95">
-            <PlusCircle size={28} />
+            {role === UserRole.CUSTOMER ? <PlusCircle size={28} /> : <MapPin size={28} />}
           </div>
         </Link>
 
