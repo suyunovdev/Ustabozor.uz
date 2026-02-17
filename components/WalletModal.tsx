@@ -3,7 +3,7 @@ import {
     X, CreditCard, Plus, Trash2, Check, Wallet, ArrowUpRight, ArrowDownLeft,
     History, AlertCircle, Loader2, ChevronLeft, TrendingUp, TrendingDown,
     Shield, Copy, CheckCircle, Eye, EyeOff, Star, Sparkles, Receipt, Zap,
-    DollarSign, PieChart, ArrowRight, RefreshCcw, Lock, Unlock, Fingerprint
+    PieChart, ArrowRight, RefreshCcw, Lock, Unlock, Fingerprint
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { ApiService } from '../services/api';
@@ -202,8 +202,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
 
     const processTransaction = async (type: 'deposit' | 'withdrawal') => {
         const amt = Number(amount);
-        if (type === 'deposit' && amt < 1000) return toast.error("Minimal: 1,000 UZS");
-        if (type === 'withdrawal' && amt < 10000) return toast.error("Minimal: 10,000 UZS");
+        if (type === 'deposit' && amt < 1000) return toast.error("Minimal: 1,000 so'm");
+        if (type === 'withdrawal' && amt < 10000) return toast.error("Minimal: 10,000 so'm");
         if (type === 'withdrawal' && amt > balance) return toast.error("Yetarli mablag' yo'q");
         if (!selectedCard) return toast.error("Karta tanlang");
 
@@ -234,7 +234,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
         setIsProcessing(false);
         setAmount('');
         onBalanceUpdate?.(newBalance);
-        toast.success(type === 'deposit' ? `✅ +${amt.toLocaleString()} UZS` : `✅ -${amt.toLocaleString()} UZS`);
+        toast.success(type === 'deposit' ? `✅ +${amt.toLocaleString()} so'm` : `✅ -${amt.toLocaleString()} so'm`);
         setView('main');
     };
 
@@ -309,7 +309,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
                                         <span className="text-4xl sm:text-5xl font-black text-white tracking-tight drop-shadow-lg">
                                             {showBalance ? balance.toLocaleString('uz-UZ') : '••••••••'}
                                         </span>
-                                        <span className="text-lg font-bold text-white/60">UZS</span>
+                                        <span className="text-lg font-bold text-white/60">so'm</span>
                                     </div>
 
                                     {/* Actions - Different for customer and worker */}
@@ -577,7 +577,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
                             <div className="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50 flex items-center justify-between">
                                 <div>
                                     <p className="text-xs text-slate-400 mb-1">Mavjud daromad</p>
-                                    <p className="text-2xl font-black text-white">{balance.toLocaleString()} <span className="text-sm text-slate-400">UZS</span></p>
+                                    <p className="text-2xl font-black text-white">{balance.toLocaleString()} <span className="text-sm text-slate-400">so'm</span></p>
                                 </div>
                                 <button
                                     onClick={() => setAmount(balance.toString())}
@@ -646,7 +646,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
                             >
                                 {isProcessing ? <Loader2 className="animate-spin" size={24} /> : <><ArrowUpRight size={22} /> Yechish</>}
                             </button>
-                            <p className="text-xs text-slate-500 text-center">Minimal: 10,000 UZS</p>
+                            <p className="text-xs text-slate-500 text-center">Minimal: 10,000 so'm</p>
                         </div>
                     )}
 
@@ -756,7 +756,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, balan
                                                 <p className={`font-black ${isPositive(tx.type) ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                     {isPositive(tx.type) ? '+' : '-'}{tx.amount.toLocaleString()}
                                                 </p>
-                                                <p className="text-xs text-slate-500">UZS</p>
+                                                <p className="text-xs text-slate-500">so'm</p>
                                             </div>
                                         </div>
                                     ))}

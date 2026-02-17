@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { ApiService } from '../../services/api';
 import { Order, OrderStatus, User } from '../../types';
 import {
-    DollarSign, TrendingUp, TrendingDown, CreditCard, Wallet, PiggyBank,
+    TrendingUp, TrendingDown, CreditCard, Wallet, PiggyBank,
     ArrowUpRight, ArrowDownRight, Calendar, RefreshCw, Download, Filter,
     ChevronLeft, ChevronRight, Eye, Clock, CheckCircle, XCircle, X,
-    BarChart3, PieChart, Activity, Banknote, Receipt, CircleDollarSign,
+    BarChart3, PieChart, Activity, Banknote, Receipt,
     ArrowRightLeft, Building, Users, Package, Percent
 } from 'lucide-react';
+import { formatMoney } from '../../utils/formatMoney';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 
 interface Transaction {
@@ -22,21 +23,6 @@ interface Transaction {
     date: string;
 }
 
-// Raqamlarni chiroyli formatlash
-const formatMoney = (amount: number): string => {
-    if (amount === 0) return '0';
-    const abs = Math.abs(amount);
-    if (abs >= 1_000_000_000) {
-        return (amount / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + ' mlrd';
-    }
-    if (abs >= 1_000_000) {
-        return (amount / 1_000_000).toFixed(1).replace(/\.0$/, '') + ' mln';
-    }
-    if (abs >= 1_000) {
-        return (amount / 1_000).toFixed(1).replace(/\.0$/, '') + ' ming';
-    }
-    return amount.toLocaleString();
-};
 
 export const AdminFinance = () => {
     const [orders, setOrders] = useState<Order[]>([]);
@@ -287,7 +273,7 @@ export const AdminFinance = () => {
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                         <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl">
-                            <CircleDollarSign size={24} className="text-white" />
+                            <Banknote size={24} className="text-white" />
                         </div>
                         Moliya Boshqaruvi
                     </h1>
@@ -312,10 +298,10 @@ export const AdminFinance = () => {
             {/* Main Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
-                    icon={DollarSign}
+                    icon={Banknote}
                     label="Jami daromad"
                     value={formatMoney(totalRevenue)}
-                    suffix=" UZS"
+                    suffix=" so'm"
                     color="bg-gradient-to-br from-emerald-500 to-emerald-600"
                     subValue={`${completedOrders.length} ta buyurtma`}
                     trend={12}
@@ -324,7 +310,7 @@ export const AdminFinance = () => {
                     icon={Percent}
                     label="Komissiya (10%)"
                     value={formatMoney(totalCommission)}
-                    suffix=" UZS"
+                    suffix=" so'm"
                     color="bg-gradient-to-br from-purple-500 to-purple-600"
                     subValue="Sof foyda"
                     trend={8}
@@ -333,7 +319,7 @@ export const AdminFinance = () => {
                     icon={Wallet}
                     label="Ishchilarga to'langan"
                     value={formatMoney(totalPayouts)}
-                    suffix=" UZS"
+                    suffix=" so'm"
                     color="bg-gradient-to-br from-blue-500 to-blue-600"
                     subValue="90% buyurtma summasi"
                 />
@@ -341,7 +327,7 @@ export const AdminFinance = () => {
                     icon={Clock}
                     label="Kutilayotgan to'lovlar"
                     value={formatMoney(pendingRevenue)}
-                    suffix=" UZS"
+                    suffix=" so'm"
                     color="bg-gradient-to-br from-yellow-500 to-yellow-600"
                     subValue={`${pendingOrders.length} ta buyurtma`}
                 />
@@ -372,7 +358,7 @@ export const AdminFinance = () => {
                     icon={XCircle}
                     label="Qaytarilgan"
                     value={formatMoney(cancelledRevenue)}
-                    suffix=" UZS"
+                    suffix=" so'm"
                     color="bg-gradient-to-br from-red-500 to-red-600"
                     subValue="Bekor qilingan buyurtmalar"
                 />
@@ -388,7 +374,7 @@ export const AdminFinance = () => {
                                 <BarChart3 size={20} className="text-emerald-500" />
                                 Oylik daromad
                             </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Daromad va komissiya (ming UZS)</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Daromad va komissiya</p>
                         </div>
                     </div>
                     <div className="h-72">
@@ -449,7 +435,7 @@ export const AdminFinance = () => {
                                     ))}
                                 </Pie>
                                 <Tooltip
-                                    formatter={(value: number) => `${(value / 1000).toFixed(0)}K UZS`}
+                                    formatter={(value: number) => `${formatMoney(value)} so'm`}
                                     contentStyle={{
                                         backgroundColor: '#1F2937',
                                         border: 'none',
@@ -467,7 +453,7 @@ export const AdminFinance = () => {
                                     <span className="text-sm text-gray-600 dark:text-gray-400">{entry.name}</span>
                                 </div>
                                 <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {(entry.value / 1000).toFixed(0)}K
+                                    {formatMoney(entry.value)}
                                 </span>
                             </div>
                         ))}
@@ -565,7 +551,7 @@ export const AdminFinance = () => {
                                                         : 'text-blue-600 dark:text-blue-400'
                                                 }`}>
                                                 {transaction.type === 'PAYOUT' || transaction.type === 'REFUND' ? '-' : '+'}
-                                                {transaction.amount.toLocaleString()} <span className="text-xs font-normal">UZS</span>
+                                                {transaction.amount.toLocaleString()} <span className="text-xs font-normal">so'm</span>
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">

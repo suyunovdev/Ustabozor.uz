@@ -500,7 +500,7 @@ export const AdminUsers = () => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="font-semibold text-gray-900 dark:text-white">
-                                                {(user.balance || 0).toLocaleString()} <span className="text-xs text-gray-400">UZS</span>
+                                                {(user.balance || 0).toLocaleString()} <span className="text-xs text-gray-400">so'm</span>
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -643,7 +643,7 @@ export const AdminUsers = () => {
                                 </div>
                                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
                                     <p className="text-xs text-gray-400 uppercase font-bold mb-1">Balans</p>
-                                    <p className="text-gray-900 dark:text-white font-medium">{(selectedUser.balance || 0).toLocaleString()} UZS</p>
+                                    <p className="text-gray-900 dark:text-white font-medium">{(selectedUser.balance || 0).toLocaleString()} so'm</p>
                                 </div>
                                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
                                     <p className="text-xs text-gray-400 uppercase font-bold mb-1">Reyting</p>
@@ -763,7 +763,7 @@ export const AdminUsers = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Balans (UZS)</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Balans (so'm)</label>
                                     <input
                                         type="number"
                                         value={editFormData.balance}

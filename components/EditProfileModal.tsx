@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, WorkerProfile } from '../types';
-import { X, Save, User as UserIcon, Phone, Mail, Briefcase, DollarSign, Camera, Plus } from 'lucide-react';
+import { X, Save, User as UserIcon, Phone, Mail, Briefcase, Banknote, Camera, Plus } from 'lucide-react';
 
 interface EditProfileModalProps {
     isOpen: boolean;
@@ -231,7 +231,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                                 <div className="space-y-2">
                                     <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Soatlik narx (so'm)</label>
                                     <div className="relative">
-                                        <DollarSign size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                        <Banknote size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                         <input
                                             type="number"
                                             name="hourlyRate"

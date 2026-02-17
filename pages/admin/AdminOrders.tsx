@@ -3,11 +3,12 @@ import { ApiService } from '../../services/api';
 import { Order, OrderStatus, User, UserRole } from '../../types';
 import {
     Search, Filter, Package, Clock, CheckCircle, XCircle, AlertTriangle,
-    ChevronLeft, ChevronRight, X, Eye, Trash2, DollarSign, Calendar,
+    ChevronLeft, ChevronRight, X, Eye, Trash2, Banknote, Calendar,
     TrendingUp, RefreshCw, MapPin, User as UserIcon, Phone, Star,
     MoreVertical, FileText, Download, Loader2, ArrowUpRight, ArrowDownRight,
     Briefcase, MessageSquare, ExternalLink, BarChart3
 } from 'lucide-react';
+import { formatMoney } from '../../utils/formatMoney';
 
 export const AdminOrders = () => {
     const [orders, setOrders] = useState<Order[]>([]);
@@ -272,7 +273,7 @@ export const AdminOrders = () => {
                 <StatCard icon={Loader2} label="Jarayonda" value={stats.inProgress + stats.accepted} color="bg-gradient-to-br from-indigo-500 to-indigo-600" />
                 <StatCard icon={CheckCircle} label="Bajarildi" value={stats.completed} color="bg-gradient-to-br from-green-500 to-green-600" />
                 <StatCard icon={XCircle} label="Bekor" value={stats.cancelled} color="bg-gradient-to-br from-red-500 to-red-600" />
-                <StatCard icon={DollarSign} label="Daromad" value={`${(stats.totalRevenue / 1000000).toFixed(1)}M`} color="bg-gradient-to-br from-emerald-500 to-emerald-600" subValue="UZS" />
+                <StatCard icon={Banknote} label="Daromad" value={formatMoney(stats.totalRevenue)} color="bg-gradient-to-br from-emerald-500 to-emerald-600" subValue="so'm" />
             </div>
 
             {/* Filters & Search */}
@@ -493,7 +494,7 @@ export const AdminOrders = () => {
                                             <td className="px-6 py-4">
                                                 <span className="font-bold text-gray-900 dark:text-white">
                                                     {(Number(order.price) || 0).toLocaleString()}
-                                                    <span className="text-xs text-gray-400 ml-1">UZS</span>
+                                                    <span className="text-xs text-gray-400 ml-1">so'm</span>
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
@@ -618,7 +619,7 @@ export const AdminOrders = () => {
                                 </div>
                                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
                                     <p className="text-xs text-gray-400 uppercase font-bold mb-1">Narx</p>
-                                    <p className="text-gray-900 dark:text-white font-bold text-lg">{(Number(selectedOrder.price) || 0).toLocaleString()} UZS</p>
+                                    <p className="text-gray-900 dark:text-white font-bold text-lg">{(Number(selectedOrder.price) || 0).toLocaleString()} so'm</p>
                                 </div>
                                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
                                     <p className="text-xs text-gray-400 uppercase font-bold mb-1">Yaratilgan</p>

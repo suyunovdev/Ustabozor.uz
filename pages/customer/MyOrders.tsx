@@ -4,8 +4,9 @@ import { ApiService } from '../../services/api';
 import { Order, OrderStatus, User } from '../../types';
 import {
   Clock, CheckCircle, XCircle, MapPin, Loader2, Star, X,
-  Calendar, DollarSign
+  Calendar
 } from '../../components/Icons';
+import { formatMoney } from '../../utils/formatMoney';
 import { Link, useNavigate } from 'react-router-dom';
 import { openChatWith } from '../../services/chatUtils';
 import { MessageCircle, ChevronRight, Eye, Banknote, Clock3, BadgeCheck, ShoppingBag, AlertTriangle, CreditCard, Wallet, Package } from 'lucide-react';
@@ -193,7 +194,7 @@ export const MyOrders = () => {
             <p className="text-white/70 text-xs">Faol</p>
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20 text-center">
-            <p className="text-2xl font-bold text-white">{(totalSpent / 1000).toFixed(0)}K</p>
+            <p className="text-2xl font-bold text-white">{formatMoney(totalSpent)}</p>
             <p className="text-white/70 text-xs">Sarflangan</p>
           </div>
         </div>
@@ -294,7 +295,7 @@ export const MyOrders = () => {
                 <div className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-gray-800">
                   <span className="text-sm text-gray-500">Narx:</span>
                   <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                    {order.price.toLocaleString()} UZS
+                    {order.price.toLocaleString()} so'm
                   </span>
                 </div>
 
@@ -425,7 +426,7 @@ export const MyOrders = () => {
             {/* Order Summary */}
             <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 mb-6">
               <p className="text-sm text-gray-500 mb-2">{selectedOrder.title}</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedOrder.price.toLocaleString()} UZS</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedOrder.price.toLocaleString()} so'm</p>
             </div>
 
             {/* Payment Methods */}
@@ -439,7 +440,7 @@ export const MyOrders = () => {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-medium text-gray-900 dark:text-white">Balansdan</p>
-                  <p className="text-sm text-gray-500">Joriy balans: {(currentUser?.balance || 0).toLocaleString()} UZS</p>
+                  <p className="text-sm text-gray-500">Joriy balans: {(currentUser?.balance || 0).toLocaleString()} so'm</p>
                 </div>
                 {paymentMethod === 'balance' && <CheckCircle size={20} className="text-green-500" />}
               </button>
@@ -477,7 +478,7 @@ export const MyOrders = () => {
               ) : (
                 <>
                   <Banknote size={20} />
-                  To'lash - {selectedOrder.price.toLocaleString()} UZS
+                  To'lash - {selectedOrder.price.toLocaleString()} so'm
                 </>
               )}
             </button>

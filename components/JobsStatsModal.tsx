@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Briefcase, TrendingUp, DollarSign, CheckCircle, Clock, XCircle, Star, ChevronRight, BarChart3, Calendar } from 'lucide-react';
+import { X, Briefcase, TrendingUp, Banknote, CheckCircle, Clock, XCircle, Star, ChevronRight, BarChart3, Calendar } from 'lucide-react';
+import { formatMoney } from '../utils/formatMoney';
 import { User, UserRole, Order } from '../types';
 import { ApiService } from '../services/api';
 
@@ -117,8 +118,8 @@ export const JobsStatsModal: React.FC<JobsStatsModalProps> = ({ isOpen, onClose,
                             <p className="text-xs text-white/70">Faol</p>
                         </div>
                         <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/20 text-center">
-                            <DollarSign size={20} className="text-emerald-300 mx-auto mb-1" />
-                            <p className="text-xl font-black text-white">{(totalEarnings / 1000).toFixed(0)}k</p>
+                            <Banknote size={20} className="text-emerald-300 mx-auto mb-1" />
+                            <p className="text-xl font-black text-white">{formatMoney(totalEarnings)}</p>
                             <p className="text-xs text-white/70">{isWorker ? "Daromad" : "Sarflangan"}</p>
                         </div>
                     </div>
@@ -201,7 +202,7 @@ export const JobsStatsModal: React.FC<JobsStatsModalProps> = ({ isOpen, onClose,
                                             </div>
                                             <div className="text-right flex flex-col items-end gap-2">
                                                 <p className="font-bold text-green-600 dark:text-green-400">
-                                                    {(Number(order.price) || 0).toLocaleString()} UZS
+                                                    {(Number(order.price) || 0).toLocaleString()} so'm
                                                 </p>
                                                 {getStatusBadge(order.status)}
                                             </div>

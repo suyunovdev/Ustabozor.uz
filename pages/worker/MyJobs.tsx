@@ -3,10 +3,11 @@ import { MockService } from '../../services/mockDb';
 import { ApiService } from '../../services/api';
 import { Order, OrderStatus, User } from '../../types';
 import {
-  Clock, CheckCircle, MapPin, DollarSign, User as UserIcon, Phone, Play,
+  Clock, CheckCircle, MapPin, User as UserIcon, Phone, Play,
   ArrowUpRight, Loader2, Briefcase, FileText, TrendingUp, Calendar,
   Star, ChevronRight, Award, Zap
 } from '../../components/Icons';
+import { formatMoney } from '../../utils/formatMoney';
 import { Link, useNavigate } from 'react-router-dom';
 import { openChatWith } from '../../services/chatUtils';
 import { MessageCircle, BadgeCheck, Banknote, Clock3, Wallet, Target } from 'lucide-react';
@@ -158,7 +159,7 @@ export const MyJobs = () => {
       await loadOrders();
       setActiveTab('EARNINGS');
 
-      toast.success(`🎉 Tabriklaymiz! ${earnings.toLocaleString()} UZS hisobingizga o'tkazildi!`);
+      toast.success(`🎉 Tabriklaymiz! ${earnings.toLocaleString()} so'm hisobingizga o'tkazildi!`);
     } catch (error) {
       console.error('Error completing job:', error);
       toast.error('Xatolik yuz berdi. Qaytadan urinib ko\'ring.');
@@ -218,14 +219,14 @@ export const MyJobs = () => {
                 <Wallet size={16} className="text-green-300" />
                 <span className="text-white/70 text-xs">Jami daromad</span>
               </div>
-              <p className="text-xl font-bold text-white">{(workerStats.totalEarnings / 1000).toFixed(0)}K UZS</p>
+              <p className="text-xl font-bold text-white">{formatMoney(workerStats.totalEarnings)} so'm</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
               <div className="flex items-center gap-2 mb-1">
                 <Clock3 size={16} className="text-yellow-300" />
                 <span className="text-white/70 text-xs">Kutilmoqda</span>
               </div>
-              <p className="text-xl font-bold text-white">{(workerStats.pendingEarnings / 1000).toFixed(0)}K UZS</p>
+              <p className="text-xl font-bold text-white">{formatMoney(workerStats.pendingEarnings)} so'm</p>
             </div>
           </div>
         )}
@@ -269,8 +270,8 @@ export const MyJobs = () => {
           <div className="space-y-4">
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-3">
-              <StatCard icon={Wallet} label="Jami daromad" value={`${((workerStats?.totalEarnings || 0) / 1000).toFixed(0)}K`} color="bg-gradient-to-r from-green-500 to-emerald-600" suffix=" UZS" />
-              <StatCard icon={Calendar} label="Bu oy" value={`${((workerStats?.thisMonthEarnings || 0) / 1000).toFixed(0)}K`} color="bg-gradient-to-r from-blue-500 to-indigo-600" suffix=" UZS" />
+              <StatCard icon={Wallet} label="Jami daromad" value={formatMoney(workerStats?.totalEarnings || 0)} color="bg-gradient-to-r from-green-500 to-emerald-600" suffix=" so'm" />
+              <StatCard icon={Calendar} label="Bu oy" value={formatMoney(workerStats?.thisMonthEarnings || 0)} color="bg-gradient-to-r from-blue-500 to-indigo-600" suffix=" so'm" />
               <StatCard icon={Target} label="Bajarilgan ishlar" value={workerStats?.completedJobs || 0} color="bg-gradient-to-r from-purple-500 to-violet-600" />
               <StatCard icon={Star} label="Reyting" value={(workerStats?.avgRating || 5).toFixed(1)} color="bg-gradient-to-r from-yellow-500 to-orange-600" suffix="/5" />
             </div>
@@ -307,7 +308,7 @@ export const MyJobs = () => {
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-green-600 dark:text-green-400">+{(getSafePrice(order.price) * 0.9).toLocaleString()}</p>
-                        <p className="text-xs text-gray-400">UZS</p>
+                        <p className="text-xs text-gray-400">so'm</p>
                       </div>
                     </div>
                   ))}
@@ -382,15 +383,15 @@ export const MyJobs = () => {
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-xl mt-3 border border-green-100 dark:border-green-900/50">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Buyurtma narxi:</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{getSafePrice(order.price).toLocaleString()} UZS</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{getSafePrice(order.price).toLocaleString()} so'm</span>
                   </div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-gray-500 dark:text-gray-400">Platforma komissiyasi (10%):</span>
-                    <span className="text-sm text-red-500">-{(getSafePrice(order.price) * 0.1).toLocaleString()} UZS</span>
+                    <span className="text-sm text-red-500">-{(getSafePrice(order.price) * 0.1).toLocaleString()} so'm</span>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-green-200 dark:border-green-800">
                     <span className="text-sm font-bold text-green-700 dark:text-green-400">Sizning daromadingiz:</span>
-                    <span className="font-bold text-xl text-green-600 dark:text-green-400">{(getSafePrice(order.price) * 0.9).toLocaleString()} UZS</span>
+                    <span className="font-bold text-xl text-green-600 dark:text-green-400">{(getSafePrice(order.price) * 0.9).toLocaleString()} so'm</span>
                   </div>
                 </div>
 
@@ -486,15 +487,15 @@ export const MyJobs = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{selectedOrder.title}</p>
               <div className="flex items-center justify-between py-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-gray-600 dark:text-gray-400">Buyurtma narxi:</span>
-                <span className="font-semibold">{selectedOrder.price.toLocaleString()} UZS</span>
+                <span className="font-semibold">{selectedOrder.price.toLocaleString()} so'm</span>
               </div>
               <div className="flex items-center justify-between py-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-gray-600 dark:text-gray-400">Komissiya (10%):</span>
-                <span className="text-red-500">-{(selectedOrder.price * 0.1).toLocaleString()} UZS</span>
+                <span className="text-red-500">-{(selectedOrder.price * 0.1).toLocaleString()} so'm</span>
               </div>
               <div className="flex items-center justify-between py-2 border-t-2 border-green-500 mt-2">
                 <span className="font-bold text-green-600 dark:text-green-400">Siz olasiz:</span>
-                <span className="font-bold text-2xl text-green-600 dark:text-green-400">{(selectedOrder.price * 0.9).toLocaleString()} UZS</span>
+                <span className="font-bold text-2xl text-green-600 dark:text-green-400">{(selectedOrder.price * 0.9).toLocaleString()} so'm</span>
               </div>
             </div>
 

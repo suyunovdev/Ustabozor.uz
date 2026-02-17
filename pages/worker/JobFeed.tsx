@@ -5,7 +5,7 @@ import { MockService } from '../../services/mockDb';
 import { ApiService } from '../../services/api';
 import { Order, OrderStatus, User, WorkerProfile } from '../../types';
 import {
-  MapPin, DollarSign, Clock, CheckCircle, Search, Filter, Star,
+  MapPin, Clock, CheckCircle, Search, Filter, Star,
   MessageCircle, Bookmark, BookmarkCheck, RefreshCw, TrendingUp,
   ChevronDown, Zap, Map, List, X, Briefcase, Award
 } from '../../components/Icons';
@@ -707,7 +707,7 @@ export const JobFeed = () => {
                 ) : null}
               </button>
               <div className="flex items-center text-green-600 dark:text-green-400 font-bold text-sm">
-                <DollarSign size={14} className="mr-1" />
+                <span className="mr-1 text-xs">💰</span>
                 {order.price.toLocaleString()} so'm
               </div>
             </div>

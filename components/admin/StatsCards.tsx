@@ -1,5 +1,7 @@
 import React from 'react';
-import { Users, Briefcase, DollarSign, TrendingUp } from '../Icons';
+import { Users, Briefcase, TrendingUp } from '../Icons';
+import { Banknote } from 'lucide-react';
+import { formatMoney } from '../../utils/formatMoney';
 
 interface StatsCardsProps {
     stats: {
@@ -16,7 +18,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ stats }) => {
     const cards = [
         { label: 'Foydalanuvchilar', value: stats?.totalUsers || 0, icon: <Users size={20} />, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30', trend: '+8%' },
         { label: 'Faol Buyurtmalar', value: stats?.activeOrders || 0, icon: <Briefcase size={20} />, color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-900/30', trend: '+12%' },
-        { label: 'Daromad', value: `${((stats?.filteredRevenue || stats?.revenue || 0) / 1000).toFixed(0)}k`, icon: <DollarSign size={20} />, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30', trend: '+15%' },
+        { label: 'Daromad', value: `${formatMoney(stats?.filteredRevenue || stats?.revenue || 0)} so'm`, icon: <Banknote size={20} />, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30', trend: '+15%' },
         { label: 'Buyurtmalar', value: stats?.filteredOrders || stats?.totalOrders || 0, icon: <TrendingUp size={20} />, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30', trend: '+5%' },
     ];
 

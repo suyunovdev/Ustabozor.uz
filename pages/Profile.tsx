@@ -160,7 +160,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-gray-900 dark:text-white">
-                {label === 'Hamyon' && <span className="text-base text-gray-500 mr-1">UZS</span>}
+                {label === 'Hamyon' && <span className="text-base text-gray-500 mr-1">so'm</span>}
                 {value}
               </span>
               {label === 'Reyting' && <span className="text-lg">⭐</span>}
