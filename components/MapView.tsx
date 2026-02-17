@@ -208,7 +208,9 @@ export const MapView: React.FC<MapViewProps> = ({
                         }}
                     >
                         <Popup>
-                            <div className="min-w-[200px]">
+                            <div className="min-w-[200px] cursor-pointer" onClick={() => {
+                                if (onMarkerClick) onMarkerClick(marker);
+                            }}>
                                 {marker.category && (
                                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                                         {marker.category}
@@ -223,6 +225,7 @@ export const MapView: React.FC<MapViewProps> = ({
                                         {marker.price.toLocaleString()} so'm
                                     </p>
                                 )}
+                                <p className="text-xs text-blue-500 mt-2 font-medium">Batafsil ko'rish →</p>
                             </div>
                         </Popup>
                     </Marker>
