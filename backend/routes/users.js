@@ -62,13 +62,13 @@ router.get('/:id', async (req, res) => {
         if (cached) return res.json(cached);
 
         const doc = await usersRef().doc(req.params.id).get();
-        if (doc.exists) {
-            const user = docToObj(doc);
-            cache.set(cacheKey, user, { ttl: USERS_CACHE_TTL, namespace: USERS_NAMESPACE });
-            res.json(user);
-        } else {
-            res.status(404).json({ message: 'User not found' });
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'User not found' });
         }
+        const user = docToObj(doc);
+        // O'chirilgan userlarni ham qaytarish (lekin isDeleted flag bilan)
+        cache.set(cacheKey, user, { ttl: USERS_CACHE_TTL, namespace: USERS_NAMESPACE });
+        res.json(user);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

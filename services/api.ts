@@ -147,7 +147,7 @@ export const setToken = (token: string | null) => {
 };
 
 // --- REQUEST HELPER ---
-async function request<T>(path: string, options: RequestInit = {}, useCache = false): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, useCache = false, silent = false): Promise<T> {
     const url = `${API_URL}${path}`;
     const cacheKey = `${options.method || 'GET'}:${url}:${JSON.stringify(options.body || '')}`;
 
@@ -182,7 +182,7 @@ async function request<T>(path: string, options: RequestInit = {}, useCache = fa
         if (useCache) setCachedData(cacheKey, data);
         return data;
     } catch (error) {
-        console.error(`API Request Error [${path}]:`, error);
+        if (!silent) console.error(`API Request Error [${path}]:`, error);
         throw error;
     }
 }
@@ -256,9 +256,9 @@ export const ApiService = {
 
     getUserById: async (id: string): Promise<User | undefined> => {
         try {
-            const data = await request<any>(`/users/${id}`, {}, true);
+            const data = await request<any>(`/users/${id}`, {}, true, true);
             return transformUser(data);
-        } catch (error) {
+        } catch {
             return undefined;
         }
     },
