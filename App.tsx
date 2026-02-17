@@ -324,7 +324,7 @@ const App = () => {
                         <Route path="/customer/home" element={<CustomerHome />} />
                         <Route path="/customer/create" element={<CreateOrder />} />
                         <Route path="/customer/orders" element={<MyOrders />} />
-                        <Route path="/customer/map" element={<MapFinder />} />
+                        <Route path="/map" element={<MapFinder />} />
                         <Route path="/profile" element={<Profile user={user} logout={handleLogout} toggleTheme={toggleTheme} isDarkMode={isDarkMode} onUserUpdate={handleUserUpdate} />} />
                         <Route path="/chat" element={<ChatPage />} />
                         <Route path="*" element={<Navigate to="/customer/home" replace />} />
@@ -336,6 +336,7 @@ const App = () => {
                       <>
                         <Route path="/worker/home" element={<JobFeed />} />
                         <Route path="/worker/orders" element={<MyJobs />} />
+                        <Route path="/map" element={<MapFinder />} />
                         <Route path="/profile" element={<Profile user={user} logout={handleLogout} toggleTheme={toggleTheme} isDarkMode={isDarkMode} onUserUpdate={handleUserUpdate} />} />
                         <Route path="/chat" element={<ChatPage />} />
                         <Route path="*" element={<Navigate to="/worker/home" replace />} />

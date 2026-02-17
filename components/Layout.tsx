@@ -43,9 +43,12 @@ const MobileNav = ({ role }: { role: UserRole }) => {
         )}
 
         <Link to={role === UserRole.CUSTOMER ? "/customer/create" : "/map"} className="flex flex-col items-center justify-center w-full h-full -mt-5">
-          <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 rounded-full shadow-lg shadow-blue-500/30 text-white ring-4 ring-white dark:ring-gray-900 transition-transform active:scale-95">
+          <div className={`flex items-center justify-center w-14 h-14 rounded-full shadow-lg text-white ring-4 ring-white dark:ring-gray-900 transition-transform active:scale-95 ${
+            isActive('/map') ? 'bg-gradient-to-tr from-emerald-500 to-teal-600 shadow-emerald-500/30' : 'bg-gradient-to-tr from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 shadow-blue-500/30'
+          }`}>
             {role === UserRole.CUSTOMER ? <PlusCircle size={28} /> : <MapPin size={28} />}
           </div>
+          {role === UserRole.WORKER && <span className={`text-[10px] font-medium mt-0.5 ${isActive('/map') ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>Xarita</span>}
         </Link>
 
         <Link to="/chat" className={`${baseClass} ${isActive('/chat') ? activeClass : inactiveClass}`}>

@@ -124,7 +124,7 @@ export const CustomerHome = () => {
       <div className="px-6 mt-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Top Ishchilar</h2>
-          <Link to="/customer/map" className="text-blue-600 dark:text-blue-400 text-sm font-medium">Xaritada ko'rish</Link>
+          <Link to="/map" className="text-blue-600 dark:text-blue-400 text-sm font-medium">Xaritada ko'rish</Link>
         </div>
 
         <div className="space-y-4">
