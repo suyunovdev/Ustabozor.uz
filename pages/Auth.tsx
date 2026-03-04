@@ -248,6 +248,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         {/* LANDING VIEW */}
         {view === 'LANDING' && (
           <div className="space-y-4 animate-fadeInUp">
+            {error && (
+              <div className="p-3 bg-red-500/20 border border-red-400/30 text-white text-sm rounded-xl text-center font-medium">
+                {error}
+              </div>
+            )}
             <button
               onClick={() => { setView('LOGIN'); setError(''); }}
               className="w-full bg-white dark:bg-gray-800 text-blue-600 dark:text-white font-bold text-lg py-4 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300"
