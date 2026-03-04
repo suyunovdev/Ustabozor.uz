@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const FormData = require('form-data');
 const { usersRef } = require('../models/User');
 const { ordersRef } = require('../models/Order');
 const { chatsRef } = require('../models/Chat');
@@ -123,14 +122,13 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
                 console.warn('IMGBB_API_KEY sozlanmagan — avatar yuklanmadi, boshqa maydonlar yangilanadi.');
             } else {
                 try {
-                    const form = new FormData();
-                    form.append('image', req.file.buffer.toString('base64'));
-                    form.append('name', `avatar-${Date.now()}`);
+                    const params = new URLSearchParams();
+                    params.append('image', req.file.buffer.toString('base64'));
+                    params.append('name', `avatar-${Date.now()}`);
 
                     const response = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
                         method: 'POST',
-                        body: form,
-                        headers: form.getHeaders()
+                        body: params
                     });
                     const result = await response.json();
                     if (result.success) {
