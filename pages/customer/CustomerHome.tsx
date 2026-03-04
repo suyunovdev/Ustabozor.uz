@@ -75,7 +75,7 @@ export const CustomerHome = () => {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-900 dark:to-gray-900 px-6 pt-12 pb-8 rounded-b-[2.5rem] shadow-xl text-white relative overflow-hidden">
+      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-900 dark:to-gray-900 px-6 pt-safe pb-8 rounded-b-[2.5rem] shadow-xl text-white relative overflow-hidden" style={{ paddingTop: 'max(3rem, calc(env(safe-area-inset-top, 0px) + 1.5rem))' }}>
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
 
         <div className="relative z-10">

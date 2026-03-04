@@ -23,8 +23,8 @@ const MobileNav = ({ role }: { role: UserRole }) => {
   const inactiveClass = "text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300";
 
   return (
-    <nav className="fixed bottom-0 left-0 z-50 w-full h-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-gray-200 dark:border-white/5 pb-safe">
-      <div className="grid h-full max-w-lg grid-cols-5 mx-auto">
+    <nav className="fixed bottom-0 left-0 z-50 w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-gray-200 dark:border-white/5 pb-safe">
+      <div className="grid h-16 max-w-lg grid-cols-5 mx-auto">
         <Link to={`/${role.toLowerCase()}/home`} className={`${baseClass} ${isActive(`/${role.toLowerCase()}/home`) ? activeClass : inactiveClass}`}>
           <Home size={20} />
           <span>Asosiy</span>
@@ -185,7 +185,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, logout, toggleTh
     return (
       <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300">
         <AdminSidebar logout={logout} toggleTheme={toggleTheme} isDarkMode={isDarkMode} user={user} />
-        <main className="flex-1 overflow-y-auto h-screen p-8 scroll-smooth">
+        <main className="flex-1 overflow-y-auto h-screen p-4 md:p-8 scroll-smooth">
           {children}
         </main>
       </div>
@@ -195,7 +195,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, logout, toggleTh
   // Mobile App Layout
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex justify-center transition-colors duration-300">
-      <div className="w-full max-w-lg bg-white dark:bg-gray-900 min-h-screen shadow-2xl dark:shadow-black/50 relative pb-16 transition-colors duration-300 overflow-hidden">
+      <div className="w-full max-w-lg bg-white dark:bg-gray-900 min-h-screen shadow-2xl dark:shadow-black/50 relative pb-nav transition-colors duration-300 overflow-hidden">
         {children}
         <MobileNav role={user.role} />
       </div>

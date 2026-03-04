@@ -179,7 +179,7 @@ export const MyOrders = () => {
   return (
     <div className="bg-gray-50 dark:bg-gray-950 min-h-screen pb-24">
       {/* Header with Stats */}
-      <div className="bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 p-6 pb-20">
+      <div className="bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 px-6 pb-20 pt-safe" style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top, 0px) + 1rem))' }}>
         <h1 className="text-xl font-bold text-white mb-1">Buyurtmalarim</h1>
         <p className="text-white/70 text-sm mb-6">Barcha buyurtmalaringiz</p>
 

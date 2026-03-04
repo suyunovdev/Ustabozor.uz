@@ -1,5 +1,53 @@
 /* IshTop Platform - Custom Styles */
 
+/* ─────────────────────────────────────────────
+   CORE MOBILE RESETS
+───────────────────────────────────────────── */
+
+/* Prevent iOS body bounce; use dvh so height works behind browser toolbar */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  height: 100%;
+}
+
+/* Full dynamic viewport height utility (adjusts to visible area on mobile) */
+.h-dvh  { height: 100dvh; }
+.min-h-dvh { min-height: 100dvh; }
+
+/* Better focus outline for accessibility */
+:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Remove default iOS button appearance */
+button, input, select, textarea {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ─────────────────────────────────────────────
+   ACTIVE / PRESSED STATE FEEDBACK
+   Gives tactile feeling on tap for mobile
+───────────────────────────────────────────── */
+button:active,
+a:active,
+[role="button"]:active {
+  opacity: 0.85;
+  transform: scale(0.98);
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+/* Disable the above for elements with their own active scale */
+.active\:scale-95:active,
+.active\:scale-100:active {
+  opacity: 1;
+  transform: none;
+}
+
+
+
 /* Scrollbar styling */
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;

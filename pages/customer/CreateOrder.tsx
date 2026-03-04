@@ -104,7 +104,7 @@ export const CreateOrder = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 dark:bg-gray-950 min-h-screen">
+    <div className="p-6 pb-safe bg-gray-50 dark:bg-gray-950 min-h-screen" style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top, 0px) + 1rem))' }}>
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Buyurtma Berish</h1>
 
       {/* Selected Worker Card */}

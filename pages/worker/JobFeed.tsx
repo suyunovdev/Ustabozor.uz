@@ -393,7 +393,7 @@ export const JobFeed = () => {
       )}
 
       {/* ===== HEADER & STATS ===== */}
-      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-900 dark:to-gray-900 p-6 text-white">
+      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-900 dark:to-gray-900 px-6 pb-6 text-white pt-safe" style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top, 0px) + 1rem))' }}>
         {/* Top row */}
         <div className="flex justify-between items-center mb-4">
           <div>

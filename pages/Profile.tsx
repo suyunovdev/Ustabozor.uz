@@ -240,7 +240,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, logout, toggleTheme, isD
 
       {/* Modern Header */}
       <div className="relative mb-24">
-        <div className="h-72 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 dark:from-blue-900 dark:via-indigo-900 dark:to-gray-900 rounded-b-[3rem] shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 dark:from-blue-900 dark:via-indigo-900 dark:to-gray-900 rounded-b-[3rem] shadow-2xl overflow-hidden pt-safe" style={{ height: 'max(18rem, calc(env(safe-area-inset-top, 0px) + 16rem))' }}>
           <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-black/20"></div>
 

@@ -207,7 +207,7 @@ export const MyJobs = () => {
   return (
     <div className="bg-gray-50 dark:bg-gray-950 min-h-screen pb-24">
       {/* Header with Stats */}
-      <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 p-6 pb-20">
+      <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 px-6 pb-20 pt-safe" style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top, 0px) + 1rem))' }}>
         <h1 className="text-xl font-bold text-white mb-1">Mening Ishlarim</h1>
         <p className="text-white/70 text-sm mb-6">Buyurtmalar va daromadingiz</p>
 

@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>IshTop - Ishchilar va Mijozlar Platformasi</title>
   <meta name="description" content="IshTop — O'zbekistondagi eng qulay ish topish va ishchi yollash platformasi. Malakali ustalar, tezkor buyurtmalar, ishonchli xizmat." />
   <meta name="keywords" content="ish topish, ishchi yollash, usta, mardikor, O'zbekiston, IshTop, ustabozor, ish beruvchi, freelancer" />
@@ -27,6 +27,13 @@
   <!-- Theme -->
   <meta name="theme-color" content="#3B82F6" />
   <meta name="msapplication-TileColor" content="#3B82F6" />
+
+  <!-- PWA / Mobile App Experience -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="IshTop" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="format-detection" content="telephone=no" />
 
   <link rel="icon" href="/logo-Photoroom.png" />
   <link rel="apple-touch-icon" href="/logo-Photoroom.png" />
@@ -82,17 +89,66 @@
       font-family: 'Inter', sans-serif;
     }
 
-    /* Hide scrollbar for mobile-like feel in containers */
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
+    /* ============================================
+       MOBILE (iOS / Android) RESPONSIVE FIXES
+       ============================================ */
+
+    /* ── Safe Area Inset Utilities ──
+       iPhone notch / Dynamic Island / home bar support */
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .pt-safe { padding-top:    env(safe-area-inset-top,    0px); }
+    .pl-safe { padding-left:   env(safe-area-inset-left,   0px); }
+    .pr-safe { padding-right:  env(safe-area-inset-right,  0px); }
+
+    /* Content bottom padding = nav (4rem) + home bar */
+    .pb-nav  { padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px)); }
+
+    /* ── iOS: Prevent input auto-zoom ──
+       iOS Safari zooms when input font-size < 16px */
+    @supports (-webkit-touch-callout: none) {
+      input:not([type="radio"]):not([type="checkbox"]):not([type="range"]),
+      select,
+      textarea {
+        font-size: max(16px, 1em) !important;
+      }
     }
 
+    /* ── Remove blue tap highlight on all touch devices ── */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Faster tap response: no 300ms delay / no double-tap zoom ── */
+    button, a, [role="button"], select, label {
+      touch-action: manipulation;
+    }
+
+    /* ── Prevent rubber-band overscroll bounce (native app feel) ── */
+    html {
+      overscroll-behavior: none;
+    }
+
+    /* ── Smooth momentum scrolling on iOS ── */
+    .overflow-y-auto,
+    .overflow-y-scroll,
+    .overflow-x-auto {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ── Prevent text selection on UI chrome ── */
+    button, nav, .no-select {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* ── Hide scrollbar for mobile-like feel in containers ── */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar {
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
 
-    /* Smooth background transition */
+    /* ── Smooth background transition ── */
     body,
     div,
     nav,

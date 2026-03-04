@@ -228,10 +228,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-950 p-6 overflow-hidden relative transition-colors duration-300">
+    <div className="flex flex-col items-center justify-center min-h-dvh bg-gray-50 dark:bg-gray-950 px-6 pb-6 overflow-hidden relative transition-colors duration-300 pt-safe" style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top, 0px) + 1rem))' }}>
 
       {/* Background decoration */}
-      <div className="absolute top-0 left-0 w-full h-[60vh] bg-gradient-to-br from-blue-600 to-indigo-900 dark:from-blue-900 dark:to-gray-950 rounded-b-[4rem] shadow-2xl z-0"></div>
+      <div className="absolute top-0 left-0 w-full h-[60dvh] bg-gradient-to-br from-blue-600 to-indigo-900 dark:from-blue-900 dark:to-gray-950 rounded-b-[4rem] shadow-2xl z-0"></div>
 
       {/* Brand Section */}
       <div className={`z-10 text-center transition-all duration-500 ${view === 'LANDING' ? 'mt-0 mb-12' : 'mt-0 mb-6 scale-90'}`}>

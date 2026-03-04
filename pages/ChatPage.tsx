@@ -292,7 +292,7 @@ export const ChatPage: React.FC = () => {
     // Loading skeleton
     if (loading) {
         return (
-            <div className="flex flex-col h-[calc(100vh-64px)]">
+            <div className="flex flex-col h-[calc(100dvh-4rem)]">
                 <ChatSkeleton />
             </div>
         );
@@ -301,7 +301,7 @@ export const ChatPage: React.FC = () => {
     // Chat window view
     if (selectedChatId && otherUser) {
         return (
-            <div className="flex flex-col h-[calc(100vh-64px)]">
+            <div className="flex flex-col h-[calc(100dvh-4rem)]">
                 <ChatWindow
                     chatId={selectedChatId}
                     messages={messages}
@@ -317,7 +317,7 @@ export const ChatPage: React.FC = () => {
     // Empty state
     if (chats.length === 0) {
         return (
-            <div className="flex flex-col h-[calc(100vh-64px)]">
+            <div className="flex flex-col h-[calc(100dvh-4rem)]">
                 <EmptyChats />
             </div>
         );
@@ -325,7 +325,7 @@ export const ChatPage: React.FC = () => {
 
     // Chat list view
     return (
-        <div className="flex flex-col h-[calc(100vh-64px)]">
+        <div className="flex flex-col h-[calc(100dvh-4rem)]">
             <ChatList
                 chats={chats}
                 users={usersArray}
