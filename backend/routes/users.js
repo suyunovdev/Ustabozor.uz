@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const crypto = require('crypto');
+const FormData = require('form-data');
 const { usersRef } = require('../models/User');
 const { ordersRef } = require('../models/Order');
 const { chatsRef } = require('../models/Chat');
@@ -9,7 +9,7 @@ const { messagesRef } = require('../models/Message');
 const { notificationsRef } = require('../models/Notification');
 const { reportsRef } = require('../models/Report');
 const { docToObj, queryToArray, withUpdatedAt, FieldValue } = require('../models/firestore');
-const { getBucket, getDb } = require('../config/db');
+const { getDb } = require('../config/db');
 const { optionalAuth, requireAuth, requireAdmin } = require('../middleware/auth');
 const cache = require('../utils/cache');
 
@@ -116,29 +116,32 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
             }
         }
 
-        // Upload avatar to Firebase Storage
+        // Upload avatar to ImgBB
         if (req.file) {
-            const bucket = getBucket();
-            if (!bucket) {
-                return res.status(500).json({ message: 'Firebase Storage sozlanmagan.' });
-            }
-            try {
-                const token = crypto.randomUUID();
-                const fileName = `uploads/avatars/${Date.now()}-${req.file.originalname}`;
-                const file = bucket.file(fileName);
-                await file.save(req.file.buffer, {
-                    metadata: {
-                        contentType: req.file.mimetype,
-                        metadata: {
-                            firebaseStorageDownloadTokens: token
-                        }
+            const imgbbKey = process.env.IMGBB_API_KEY;
+            if (!imgbbKey) {
+                console.warn('IMGBB_API_KEY sozlanmagan — avatar yuklanmadi, boshqa maydonlar yangilanadi.');
+            } else {
+                try {
+                    const form = new FormData();
+                    form.append('image', req.file.buffer.toString('base64'));
+                    form.append('name', `avatar-${Date.now()}`);
+
+                    const response = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
+                        method: 'POST',
+                        body: form,
+                        headers: form.getHeaders()
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        updatedData.avatar = result.data.url;
+                        console.log('Avatar uploaded to ImgBB:', updatedData.avatar);
+                    } else {
+                        console.error('ImgBB upload failed:', result.error?.message);
                     }
-                });
-                updatedData.avatar = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
-                console.log('Avatar uploaded:', updatedData.avatar);
-            } catch (uploadError) {
-                console.error('Avatar upload error:', uploadError.message);
-                return res.status(500).json({ message: 'Avatar yuklashda xato: ' + uploadError.message });
+                } catch (uploadError) {
+                    console.error('Avatar upload error (skipping):', uploadError.message);
+                }
             }
         }
 

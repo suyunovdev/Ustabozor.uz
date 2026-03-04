@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 import { MockService } from '../services/mockDb';
-import { signInWithGoogle, getGoogleRedirectResult } from '../services/firebase';
+import { signInWithGoogle } from '../services/firebase';
 import {
   Zap, ChevronRight, Loader2, User as UserIcon, Briefcase,
   Camera, FileText, CheckCircle, Mail, Lock, Eye, EyeOff, X
@@ -93,30 +93,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [googleIdToken, setGoogleIdToken] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Mobile redirect: check if returning from Google sign-in redirect
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        setGoogleLoading(true);
-        const result = await getGoogleRedirectResult();
-        if (!result) return; // No pending redirect
-        const authResult = await MockService.googleAuth(result.idToken);
-        if (authResult.needsRole) {
-          setGoogleIdToken(result.idToken);
-          setRegData({ name: authResult.googleData.name || '', surname: '', email: authResult.googleData.email || '', phone: '', password: '' });
-          setView('ROLE_SELECT');
-        } else {
-          onLogin(authResult);
-        }
-      } catch {
-        // No redirect result or error — ignore silently
-      } finally {
-        setGoogleLoading(false);
-      }
-    };
-    handleRedirectResult();
-  }, []);
-
   // --- Handlers ---
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -199,8 +175,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         onLogin(result);
       }
     } catch (err: any) {
-      if (err?.message === 'REDIRECT_PENDING') return; // Mobile redirect — page will reload
-      setError(err.message || 'Google bilan kirishda xatolik');
+      if (err?.message === 'POPUP_BLOCKED') {
+        setError("Brauzeringiz Google popup'ni blokladi. Iltimos, email/parol bilan kiring.");
+      } else {
+        setError(err.message || 'Google bilan kirishda xatolik');
+      }
       setGoogleLoading(false);
     }
   };
