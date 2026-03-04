@@ -168,6 +168,16 @@ async function request<T>(path: string, options: RequestInit = {}, useCache = fa
         });
 
         if (!res.ok) {
+            // 401 → token expired or invalid → force logout
+            if (res.status === 401) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('currentUser');
+                // Reload to Auth page (hash router will show login)
+                if (typeof window !== 'undefined' && !path.includes('/auth/')) {
+                    window.location.reload();
+                }
+            }
             let errorMessage = `Request failed with status ${res.status}`;
             try {
                 const errorData = await res.json();
