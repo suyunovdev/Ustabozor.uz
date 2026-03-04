@@ -84,6 +84,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   // Worker Setup State
   const [workerSkills, setWorkerSkills] = useState<string[]>([]);
   const [setupStep, setSetupStep] = useState(1);
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
+  const [passportFile, setPassportFile] = useState<File | null>(null);
+  const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
+  const [passportPreview, setPassportPreview] = useState<string | null>(null);
 
   // Google OAuth State
   const [googleIdToken, setGoogleIdToken] = useState<string | null>(null);
@@ -201,6 +205,17 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     } catch (e: any) {
       setIsLoading(false);
       setError(e.message || "Ro'yxatdan o'tishda xatolik.");
+    }
+  };
+
+  const handleFileSelect = (type: 'selfie' | 'passport', file: File) => {
+    const url = URL.createObjectURL(file);
+    if (type === 'selfie') {
+      setSelfieFile(file);
+      setSelfiePreview(url);
+    } else {
+      setPassportFile(file);
+      setPassportPreview(url);
     }
   };
 
@@ -486,15 +501,50 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                   <p className="text-sm text-gray-500 dark:text-gray-400">Tasdiqdan o'tish uchun hujjatlarni yuklang</p>
                 </div>
 
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 flex flex-col items-center justify-center space-y-2 hover:border-blue-500 dark:hover:border-blue-500 cursor-pointer transition-colors bg-gray-50 dark:bg-gray-800/50">
-                  <Camera size={32} className="text-gray-400 dark:text-gray-500" />
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Selfi olish</span>
-                </div>
+                <label className="block cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && handleFileSelect('selfie', e.target.files[0])}
+                  />
+                  <div className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center space-y-2 transition-colors ${selfiePreview ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 hover:border-blue-500'}`}>
+                    {selfiePreview ? (
+                      <>
+                        <img src={selfiePreview} alt="Selfie" className="w-20 h-20 rounded-full object-cover ring-2 ring-green-500" />
+                        <span className="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-1"><CheckCircle size={14} /> Selfie yuklandi</span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera size={32} className="text-gray-400 dark:text-gray-500" />
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Selfi olish / yuklash</span>
+                      </>
+                    )}
+                  </div>
+                </label>
 
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 flex flex-col items-center justify-center space-y-2 hover:border-blue-500 dark:hover:border-blue-500 cursor-pointer transition-colors bg-gray-50 dark:bg-gray-800/50">
-                  <FileText size={32} className="text-gray-400 dark:text-gray-500" />
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Pasport nusxasi</span>
-                </div>
+                <label className="block cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && handleFileSelect('passport', e.target.files[0])}
+                  />
+                  <div className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center space-y-2 transition-colors ${passportPreview ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 hover:border-blue-500'}`}>
+                    {passportPreview ? (
+                      <>
+                        <img src={passportPreview} alt="Pasport" className="w-20 h-14 rounded-lg object-cover ring-2 ring-green-500" />
+                        <span className="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-1"><CheckCircle size={14} /> Pasport yuklandi</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText size={32} className="text-gray-400 dark:text-gray-500" />
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Pasport nusxasini yuklash</span>
+                      </>
+                    )}
+                  </div>
+                </label>
 
                 <button
                   onClick={() => setSetupStep(2)}

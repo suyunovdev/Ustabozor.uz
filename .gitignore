@@ -15,6 +15,9 @@ dist-ssr
 # Firebase credentials - NEVER commit these
 backend/config/serviceAccountKey.json
 backend/.env
+
+# Frontend env (contains API keys)
+.env
 nul
 
 # Editor directories and files
