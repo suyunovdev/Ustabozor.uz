@@ -2,9 +2,9 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 const firebaseConfig = {
-    apiKey: process.env.VITE_FIREBASE_API_KEY,
-    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+    apiKey: (import.meta.env.VITE_FIREBASE_API_KEY || '').trim(),
+    authDomain: (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '').trim(),
+    projectId: (import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim(),
 };
 
 const app = initializeApp(firebaseConfig);
