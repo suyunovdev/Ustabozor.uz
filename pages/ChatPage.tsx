@@ -4,7 +4,9 @@ import { toast } from 'react-toastify';
 import { ChatList } from '../components/chat/ChatList';
 import { ChatWindow } from '../components/chat/ChatWindow';
 import { ChatService } from '../services/chatService';
-import { Chat, Message, User } from '../types';
+import { socketService } from '../services/socketService';
+import { ApiService } from '../services/api';
+import { Chat, Message, MessageStatus, User } from '../types';
 import { MessageSquare } from 'lucide-react';
 
 // Skeleton Loading Component
@@ -40,7 +42,6 @@ const EmptyChats: React.FC = () => (
     </div>
 );
 
-// Optimized Chat Page with caching, skeleton loading, and progressive updates
 export const ChatPage: React.FC = () => {
     const location = useLocation();
     const [chats, setChats] = useState<Chat[]>([]);
@@ -52,27 +53,28 @@ export const ChatPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [messagesLoading, setMessagesLoading] = useState(false);
 
-    // Refs for tracking state without re-renders
-    const prevUnreadRef = useRef(0);
-    const isFirstLoadRef = useRef(true);
-    const abortControllerRef = useRef<AbortController | null>(null);
-    const prevMessagesJsonRef = useRef<string>('');
+    // Typing indicators: chatId → Set of userIds
+    const [typingUsers, setTypingUsers] = useState<Map<string, Set<string>>>(new Map<string, Set<string>>());
+
     const prevChatsJsonRef = useRef<string>('');
+    const prevMessagesJsonRef = useRef<string>('');
+    const isFirstLoadRef = useRef(true);
+    const prevUnreadRef = useRef(0);
+    const typingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+    const chatPollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
     const currentUser: User | null = useMemo(() =>
         currentUserStr ? JSON.parse(currentUserStr) : null
         , [currentUserStr]);
 
-    // Extract user from populated chat data
+    // Extract other user from chat
     const getUserFromChat = useCallback((chat: any): User | undefined => {
         if (!currentUser || !chat.participants) return undefined;
-
         const otherParticipant = chat.participants.find((p: any) => {
-            const participantId = p._id || p.id || p;
-            return participantId !== currentUser.id;
+            const pid = p._id || p.id || p;
+            return pid !== currentUser.id;
         });
-
         if (otherParticipant && typeof otherParticipant === 'object') {
             return {
                 id: otherParticipant._id || otherParticipant.id,
@@ -83,46 +85,30 @@ export const ChatPage: React.FC = () => {
                 isOnline: otherParticipant.isOnline
             } as User;
         }
-
         return undefined;
     }, [currentUser]);
 
-    // Optimized chat loader with abort controller
+    // ─── LOAD CHATS ───────────────────────────────────────────────
     const loadChats = useCallback(async (showLoading = false) => {
         if (!currentUser) return;
-
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-        abortControllerRef.current = new AbortController();
-
         try {
             if (showLoading) setLoading(true);
-
-            const startTime = performance.now();
             const userChats = await ChatService.getUserChats(currentUser.id);
-            console.log(`📨 Chats loaded in ${(performance.now() - startTime).toFixed(0)}ms`);
 
-            // Sort by last message time
             const sortedChats = userChats.sort((a, b) => {
                 const aTime = a.lastMessage ? new Date(a.lastMessage.timestamp).getTime() : 0;
                 const bTime = b.lastMessage ? new Date(b.lastMessage.timestamp).getTime() : 0;
                 return bTime - aTime;
             });
 
-            // Calculate unread for notification
             const totalUnread = sortedChats.reduce((sum, c) => sum + c.unreadCount, 0);
-
-            // Play sound only if new unread messages and not first load
             if (!isFirstLoadRef.current && totalUnread > prevUnreadRef.current) {
                 playNotificationSound();
             }
-
             prevUnreadRef.current = totalUnread;
             isFirstLoadRef.current = false;
 
-            // Extract users from populated chat data
+            // Extract users
             const userMap = new Map<string, User>();
             sortedChats.forEach((chat: any) => {
                 if (chat.participants) {
@@ -141,10 +127,8 @@ export const ChatPage: React.FC = () => {
                     });
                 }
             });
-
             setUsers(userMap);
 
-            // Smart diff: only update chats if data changed
             const chatsJson = JSON.stringify(sortedChats.map(c =>
                 `${c.id}:${c.unreadCount}:${(c.lastMessage as any)?.id || ''}:${(c.lastMessage as any)?.status || ''}`
             ));
@@ -153,35 +137,29 @@ export const ChatPage: React.FC = () => {
                 setChats(sortedChats);
             }
         } catch (error: any) {
-            if (error.name !== 'AbortError') {
-                console.error('Error loading chats:', error);
-            }
+            console.error('Error loading chats:', error);
         } finally {
             setLoading(false);
         }
     }, [currentUser]);
 
-    // Load messages with smart diff — skip re-render if no changes
+    // ─── LOAD MESSAGES ────────────────────────────────────────────
     const loadMessages = useCallback(async (chatId: string, showLoading = false) => {
         try {
             if (showLoading) setMessagesLoading(true);
             const chatMessages = await ChatService.getChatMessages(chatId);
-
-            // Smart diff: only update if data actually changed
             const newJson = JSON.stringify(chatMessages.map(m => `${m.id}:${m.status}`));
             if (newJson !== prevMessagesJsonRef.current) {
                 prevMessagesJsonRef.current = newJson;
-                // Filter out temp messages if real ones arrived
                 setMessages(prev => {
-                    const realIds = new Set(chatMessages.map(m => m.id));
-                    const tempMessages = prev.filter(m => m.id.startsWith('temp-'));
-                    // Keep temp messages only if no real message matches their content
-                    const remainingTemp = tempMessages.filter(temp =>
-                        !chatMessages.some(real =>
-                            real.content === temp.content &&
-                            Math.abs(new Date(real.timestamp).getTime() - new Date(temp.timestamp).getTime()) < 10000
-                        )
-                    );
+                    const remainingTemp = prev
+                        .filter(m => m.id.startsWith('temp-'))
+                        .filter(temp =>
+                            !chatMessages.some(real =>
+                                real.content === temp.content &&
+                                Math.abs(new Date(real.timestamp).getTime() - new Date(temp.timestamp).getTime()) < 10000
+                            )
+                        );
                     return [...chatMessages, ...remainingTemp];
                 });
             }
@@ -198,73 +176,218 @@ export const ChatPage: React.FC = () => {
         audio.play().catch(() => { });
     }, []);
 
-    // Initial load
+    // ─── SOCKET SETUP ─────────────────────────────────────────────
+    useEffect(() => {
+        if (!currentUser) return;
+
+        // Connect socket
+        socketService.connect(currentUser.id);
+
+        // Listen: new message
+        const offNewMsg = socketService.onNewMessage((message) => {
+            if (message.chatId === selectedChatId || (message as any).chatId === selectedChatId) {
+                setMessages(prev => {
+                    // Temp xabarni o'chirish
+                    const withoutTemp = prev.filter(m => !(
+                        m.id.startsWith('temp-') &&
+                        m.content === message.content &&
+                        Math.abs(new Date(m.timestamp).getTime() - new Date(message.timestamp).getTime()) < 10000
+                    ));
+                    // Duplicate tekshirish
+                    if (withoutTemp.some(m => m.id === message.id)) return withoutTemp;
+                    return [...withoutTemp, message];
+                });
+                prevMessagesJsonRef.current = '';
+            }
+            // Chat listni yangilash
+            loadChats(false);
+            playNotificationSound();
+        });
+
+        // Listen: message status update
+        const offStatusUpdate = socketService.onMessageStatusUpdate(({ messageId, status }) => {
+            setMessages(prev =>
+                prev.map(m => m.id === messageId ? { ...m, status: status as any } : m)
+            );
+        });
+
+        // Listen: messages read ack
+        const offReadAck = socketService.onMessagesReadAck(({ chatId }) => {
+            if (chatId === selectedChatId) {
+                setMessages(prev =>
+                    prev.map(m => m.status !== 'READ' ? { ...m, status: 'READ' as any } : m)
+                );
+            }
+            loadChats(false);
+        });
+
+        // Listen: typing
+        const offTyping = socketService.onTyping(({ userId, chatId, isTyping }) => {
+            if (userId === currentUser.id) return;
+
+            // Auto-clear typing timeout
+            const key = `${chatId}:${userId}`;
+            if (typingTimeoutsRef.current.has(key)) {
+                clearTimeout(typingTimeoutsRef.current.get(key)!);
+            }
+
+            setTypingUsers(prev => {
+                const next = new Map<string, Set<string>>(prev);
+                const chatTypers = new Set<string>(next.get(chatId) ?? []);
+                if (isTyping) {
+                    chatTypers.add(userId);
+                    const timeout = setTimeout(() => {
+                        setTypingUsers(p => {
+                            const n = new Map<string, Set<string>>(p);
+                            const t = new Set<string>(n.get(chatId) ?? []);
+                            t.delete(userId);
+                            n.set(chatId, t);
+                            return n;
+                        });
+                    }, 5000);
+                    typingTimeoutsRef.current.set(key, timeout);
+                } else {
+                    chatTypers.delete(userId);
+                    typingTimeoutsRef.current.delete(key);
+                }
+                next.set(chatId, chatTypers);
+                return next;
+            });
+        });
+
+        // Listen: user online/offline status
+        const offUserStatus = socketService.onUserStatus(({ userId, isOnline }) => {
+            setUsers(prev => {
+                const next = new Map(prev);
+                const user = next.get(userId);
+                if (user) next.set(userId, { ...(user as any), isOnline } as User);
+                return next;
+            });
+            setChats(prev => prev.map(chat => {
+                if (!(chat as any).participants) return chat;
+                return {
+                    ...(chat as any),
+                    participants: ((chat as any).participants as any[]).map((p: any) => {
+                        const pid = p._id || p.id || p;
+                        if (pid === userId) return { ...p, isOnline };
+                        return p;
+                    })
+                } as Chat;
+            }));
+        });
+
+        // Listen: chat updated (new message in other chat)
+        const offChatUpdated = socketService.onChatUpdated(() => {
+            loadChats(false);
+        });
+
+        return () => {
+            offNewMsg();
+            offStatusUpdate();
+            offReadAck();
+            offTyping();
+            offUserStatus();
+            offChatUpdated();
+        };
+    }, [currentUser, selectedChatId, loadChats, playNotificationSound]);
+
+    // ─── INITIAL LOAD + FALLBACK POLLING ─────────────────────────
     useEffect(() => {
         loadChats(true);
 
-        // Polling interval - 8 seconds for chat list
-        const interval = setInterval(() => loadChats(false), 8000);
+        // Fallback polling (30s) agar socket ishlamasa
+        chatPollingRef.current = setInterval(() => {
+            if (!socketService.isConnected) {
+                loadChats(false);
+            }
+        }, 30000);
 
         return () => {
-            clearInterval(interval);
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
+            if (chatPollingRef.current) clearInterval(chatPollingRef.current);
         };
     }, [loadChats]);
 
-    // Load messages when chat is selected
+    // ─── SELECTED CHAT ────────────────────────────────────────────
     useEffect(() => {
-        if (selectedChatId && currentUser) {
-            loadMessages(selectedChatId, true);
+        if (!selectedChatId || !currentUser) return;
 
-            // Mark as delivered then as read (fire and forget)
-            ChatService.markAsDelivered(selectedChatId, currentUser.id).catch(() => { });
-            ChatService.markAsRead(selectedChatId, currentUser.id).catch(() => { });
+        loadMessages(selectedChatId, true);
+        prevMessagesJsonRef.current = '';
 
-            // Polling for messages - 4 seconds
-            const interval = setInterval(() => {
+        socketService.joinChat(selectedChatId);
+        socketService.markAsDelivered(selectedChatId, currentUser.id);
+        socketService.markAsRead(selectedChatId, currentUser.id);
+
+        // HTTP fallback (agar socket yo'q bo'lsa)
+        ChatService.markAsRead(selectedChatId, currentUser.id).catch(() => { });
+
+        // Fallback polling for messages (10s)
+        const interval = setInterval(() => {
+            if (!socketService.isConnected) {
                 loadMessages(selectedChatId, false);
-            }, 4000);
+            }
+        }, 10000);
 
-            return () => clearInterval(interval);
-        }
+        return () => {
+            clearInterval(interval);
+            socketService.leaveChat(selectedChatId);
+        };
     }, [selectedChatId, currentUser, loadMessages]);
 
+    // ─── HANDLERS ─────────────────────────────────────────────────
     const handleSelectChat = useCallback((chatId: string) => {
+        if (selectedChatId) socketService.leaveChat(selectedChatId);
         setSelectedChatId(chatId);
-        setMessages([]); // Clear messages immediately for fresh load
-    }, []);
+        setMessages([]);
+        prevMessagesJsonRef.current = '';
+    }, [selectedChatId]);
 
     const handleSendMessage = useCallback(async (content: string, attachments?: any[]) => {
         if (!selectedChatId || !currentUser) return;
 
+        // Optimistic update
+        const tempMessage: Message = {
+            id: `temp-${Date.now()}`,
+            chatId: selectedChatId,
+            senderId: currentUser.id,
+            content,
+            timestamp: new Date().toISOString(),
+            status: MessageStatus.SENT,
+            attachments
+        };
+        setMessages(prev => [...prev, tempMessage]);
+
         try {
-            // Optimistic update - immediately show message
-            const tempMessage: Message = {
-                id: `temp-${Date.now()}`,
-                chatId: selectedChatId,
-                senderId: currentUser.id,
-                content,
-                timestamp: new Date().toISOString(),
-                status: 'SENT',
-                attachments
-            };
-            setMessages(prev => [...prev, tempMessage]);
+            if (socketService.isConnected) {
+                // Socket orqali yuborish
+                const result = await socketService.sendMessage(selectedChatId, currentUser.id, content, attachments);
+                if (!result.success) {
+                    // Fallback: HTTP
+                    await ChatService.sendMessage(selectedChatId, currentUser.id, content, attachments);
+                }
+            } else {
+                // HTTP fallback
+                await ChatService.sendMessage(selectedChatId, currentUser.id, content, attachments);
+            }
 
-            // Send to server
-            await ChatService.sendMessage(selectedChatId, currentUser.id, content, attachments);
-
-            // Reset diff cache to force update, then load actual messages
             prevMessagesJsonRef.current = '';
             await loadMessages(selectedChatId, false);
         } catch (error) {
             console.error('Error sending message:', error);
-            toast.error("Xabar yuborishda xatolik");
-            // Remove optimistic update on error
+            toast.error('Xabar yuborishda xatolik');
             setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
         }
     }, [selectedChatId, currentUser, loadMessages]);
+
+    const handleTypingStart = useCallback(() => {
+        if (!selectedChatId || !currentUser) return;
+        socketService.sendTypingStart(selectedChatId, currentUser.id);
+    }, [selectedChatId, currentUser]);
+
+    const handleTypingStop = useCallback(() => {
+        if (!selectedChatId || !currentUser) return;
+        socketService.sendTypingStop(selectedChatId, currentUser.id);
+    }, [selectedChatId, currentUser]);
 
     // Get other user from selected chat
     const otherUser = useMemo(() => {
@@ -274,10 +397,16 @@ export const ChatPage: React.FC = () => {
         return getUserFromChat(selectedChat);
     }, [selectedChatId, currentUser, chats, getUserFromChat]);
 
-    // Convert users Map to array for ChatList
+    // Typing users for current chat
+    const isOtherUserTyping = useMemo(() => {
+        if (!selectedChatId || !otherUser) return false;
+        const typers = typingUsers.get(selectedChatId);
+        return typers ? typers.has(otherUser.id) : false;
+    }, [selectedChatId, otherUser, typingUsers]);
+
     const usersArray = useMemo(() => Array.from(users.values()), [users]);
 
-    // Not logged in state
+    // Not logged in
     if (!currentUser) {
         return (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] text-center px-6">
@@ -290,7 +419,6 @@ export const ChatPage: React.FC = () => {
         );
     }
 
-    // Loading skeleton
     if (loading) {
         return (
             <div className="flex flex-col h-[calc(100dvh-4rem)]">
@@ -299,7 +427,6 @@ export const ChatPage: React.FC = () => {
         );
     }
 
-    // Chat window view
     if (selectedChatId && otherUser) {
         return (
             <div className="flex flex-col h-[calc(100dvh-4rem)]">
@@ -310,12 +437,14 @@ export const ChatPage: React.FC = () => {
                     otherUser={otherUser}
                     onSendMessage={handleSendMessage}
                     onBack={() => setSelectedChatId(undefined)}
+                    isOtherUserTyping={isOtherUserTyping}
+                    onTypingStart={handleTypingStart}
+                    onTypingStop={handleTypingStop}
                 />
             </div>
         );
     }
 
-    // Empty state
     if (chats.length === 0) {
         return (
             <div className="flex flex-col h-[calc(100dvh-4rem)]">
@@ -324,7 +453,6 @@ export const ChatPage: React.FC = () => {
         );
     }
 
-    // Chat list view
     return (
         <div className="flex flex-col h-[calc(100dvh-4rem)]">
             <ChatList

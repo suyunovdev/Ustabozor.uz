@@ -9,11 +9,13 @@ interface ChatInputProps {
   disabled?: boolean;
   replyingTo?: Message | null;
   onCancelReply?: () => void;
+  onTypingStart?: () => void;
+  onTypingStop?: () => void;
 }
 
 const QUICK_EMOJIS = ['😊', '👍', '❤️', '😂', '🔥', '👏', '🙏', '✅', '👋', '🎉', '💪', '🤝'];
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled, replyingTo, onCancelReply }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled, replyingTo, onCancelReply, onTypingStart, onTypingStop }) => {
   const [message, setMessage] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [showAttach, setShowAttach] = useState(false);
@@ -25,6 +27,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled, r
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recordingInterval = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
+
+  const handleTypingChange = (value: string) => {
+    if (value.trim() && !isTypingRef.current) {
+      isTypingRef.current = true;
+      onTypingStart?.();
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        onTypingStop?.();
+      }
+    }, 2000);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +52,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled, r
       setShowEmoji(false);
       setShowAttach(false);
       if (onCancelReply) onCancelReply();
+      // Typing stop
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        onTypingStop?.();
+      }
     }
   };
 
@@ -366,7 +390,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled, r
               ref={inputRef}
               type="text"
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => { setMessage(e.target.value); handleTypingChange(e.target.value); }}
               onKeyPress={handleKeyPress}
               placeholder={replyingTo ? "Javob yozing..." : "Xabar yozing..."}
               disabled={disabled || isUploading}

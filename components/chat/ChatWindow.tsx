@@ -26,6 +26,9 @@ interface ChatWindowProps {
   otherUser?: User;
   onSendMessage: (content: string, attachments?: any[]) => void;
   onBack?: () => void;
+  isOtherUserTyping?: boolean;
+  onTypingStart?: () => void;
+  onTypingStop?: () => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -34,29 +37,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   currentUserId,
   otherUser,
   onSendMessage,
-  onBack
+  onBack,
+  isOtherUserTyping = false,
+  onTypingStart,
+  onTypingStop,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
   const prevMessagesLength = useRef(messages.length);
   const initialLoad = useRef(true);
 
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
-  // Typing indicator simulation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (Math.random() > 0.97 && otherUser) {
-        setIsTyping(true);
-        setTimeout(() => setIsTyping(false), 2000 + Math.random() * 1500);
-      }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [otherUser]);
+  // isOtherUserTyping — socket orqali keladi (ChatPage dan prop)
 
   const handleScroll = useCallback(() => {
     if (!messagesContainerRef.current) return;
@@ -404,7 +400,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             })}
 
             {/* Typing indicator */}
-            {isTyping && (
+            {isOtherUserTyping && (
               <div className="flex items-center gap-2 py-1">
                 <img
                   src={otherUser.avatar || 'https://ui-avatars.com/api/?name=' + otherUser.name}
@@ -442,6 +438,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         onSendMessage={handleSendMessage}
         replyingTo={replyingToMessage}
         onCancelReply={() => setReplyingToMessage(null)}
+        onTypingStart={onTypingStart}
+        onTypingStop={onTypingStop}
       />
     </div>
   );

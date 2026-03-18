@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -7,6 +9,7 @@ const bodyParser = require('body-parser');
 const { initializeFirebase } = require('./config/db');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // Render.com proxy orqali ishlaydi — haqiqiy IP ni olish uchun
@@ -22,7 +25,6 @@ const corsOptions = {
         if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else if (origin && origin.match(/^https:\/\/.*\.vercel\.app$/)) {
-            // Vercel preview deployment'larga ruxsat berish
             callback(null, true);
         } else {
             callback(new Error('CORS not allowed'));
@@ -34,31 +36,58 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// Socket.IO — CORS bilan
+const io = new Server(server, {
+    cors: {
+        origin: function (origin, callback) {
+            if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else if (origin && origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+                callback(null, true);
+            } else {
+                callback(new Error('Socket CORS not allowed'));
+            }
+        },
+        methods: ['GET', 'POST'],
+        credentials: true
+    },
+    transports: ['websocket', 'polling'],
+    pingInterval: 25000,
+    pingTimeout: 20000
+});
+
+// Socket.IO handler
+const { initSocket } = require('./socket');
+initSocket(io);
+
+// io ni route'larda ishlatish uchun
+app.set('io', io);
+
 // Security headers
 app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-    contentSecurityPolicy: false // SPA uchun o'chirildi
+    contentSecurityPolicy: false
 }));
 
-// Rate limiting — umumiy (OPTIONS so'rovlarni o'tkazib yuborish)
+// Rate limiting — umumiy
 const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 daqiqa
-    max: 1000, // har 15 daqiqada 1000 ta so'rov (SPA polling + navigation)
+    windowMs: 15 * 60 * 1000,
+    max: 1000,
     message: { message: 'Juda ko\'p so\'rov. Biroz kuting.' },
     skip: (req) => req.method === 'OPTIONS'
 });
 app.use(generalLimiter);
 
-// Rate limiting — login/register uchun qattiqroq
+// Rate limiting — login/register
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 daqiqa
-    max: 20, // har 15 daqiqada 20 ta urinish
+    windowMs: 15 * 60 * 1000,
+    max: 20,
     message: { message: 'Juda ko\'p urinish. 15 daqiqadan keyin qaytadan urinib ko\'ring.' },
     skip: (req) => req.method === 'OPTIONS'
 });
 
 app.use(bodyParser.json());
-app.use(bodyParser.text({ type: 'text/plain' })); // sendBeacon uchun
+app.use(bodyParser.text({ type: 'text/plain' }));
 
 // --- ROUTES ---
 const authRoutes = require('./routes/auth');
@@ -92,12 +121,18 @@ app.get('/api/test-storage', async (req, res) => {
     }
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+// Socket status endpoint
+app.get('/api/socket-status', (req, res) => {
+    const { isUserOnline } = require('./socket');
+    res.json({ ok: true, connectedSockets: io.engine.clientsCount });
 });
 
-// Online status cleanup — har 5 daqiqada eskirgan "online" statuslarni tozalash
+// Start server — app.listen o'rniga server.listen
+server.listen(PORT, () => {
+    console.log(`🚀 Server + Socket.IO running on http://localhost:${PORT}`);
+});
+
+// Online status cleanup — har 5 daqiqada
 const ONLINE_TIMEOUT_MS = 5 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
