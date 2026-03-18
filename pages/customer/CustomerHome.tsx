@@ -20,20 +20,44 @@ const CATEGORIES = [
   { id: 9, name: 'SMM', icon: <div className="text-cyan-500 dark:text-cyan-400">📱</div>, color: 'bg-cyan-50 dark:bg-cyan-900/20' },
 ];
 
+type SortKey = 'online' | 'rating' | 'reviews' | 'price';
+
+const sortWorkers = (data: WorkerProfile[], key: SortKey) => {
+  return [...data].sort((a, b) => {
+    if (key === 'online') {
+      if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+      if ((b.rating ?? 0) !== (a.rating ?? 0)) return (b.rating ?? 0) - (a.rating ?? 0);
+      return (b.ratingCount ?? 0) - (a.ratingCount ?? 0);
+    }
+    if (key === 'rating') return (b.rating ?? 0) - (a.rating ?? 0);
+    if (key === 'reviews') return (b.ratingCount ?? 0) - (a.ratingCount ?? 0);
+    if (key === 'price') return (a.hourlyRate ?? 0) - (b.hourlyRate ?? 0);
+    return 0;
+  });
+};
+
 export const CustomerHome = () => {
   const [workers, setWorkers] = useState<WorkerProfile[]>([]);
+  const [allWorkers, setAllWorkers] = useState<WorkerProfile[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>('online');
   const [userLocation, setUserLocation] = useState<LocationData | null>(null);
   const navigate = useNavigate();
 
-  // Get current user
   const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
 
   useEffect(() => {
-    MockService.getWorkers().then(setWorkers);
-    // Joylashuvni olish
+    MockService.getWorkers().then(data => {
+      setAllWorkers(data);
+      setWorkers(sortWorkers(data, 'online'));
+    });
     setUserLocation(getSavedLocation());
   }, []);
+
+  const handleSort = (key: SortKey) => {
+    setSortKey(key);
+    setWorkers(sortWorkers(allWorkers, key));
+  };
 
   const handleChatWithWorker = async (workerId: string) => {
     if (!currentUser) {
@@ -122,9 +146,31 @@ export const CustomerHome = () => {
 
       {/* Top Workers List */}
       <div className="px-6 mt-8">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-3">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Top Ishchilar</h2>
           <Link to="/map" className="text-blue-600 dark:text-blue-400 text-sm font-medium">Xaritada ko'rish</Link>
+        </div>
+
+        {/* Sort tugmalari */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4 pb-1">
+          {([
+            { key: 'online', label: '🟢 Online' },
+            { key: 'rating', label: '⭐ Reyting' },
+            { key: 'reviews', label: '💬 Baholar' },
+            { key: 'price',  label: '💰 Narx' },
+          ] as { key: SortKey; label: string }[]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => handleSort(key)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                sortKey === key
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         <div className="space-y-4">

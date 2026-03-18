@@ -4,8 +4,6 @@ import {
   Clock,
   AlertTriangle,
   LogOut,
-  Send,
-  ExternalLink,
 } from "lucide-react";
 
 interface BannedScreenProps {
@@ -112,27 +110,6 @@ export const BannedScreen: React.FC<BannedScreenProps> = ({
             </div>
           )}
         </div>
-
-        {/* Contact Admin via Telegram */}
-        <a
-          href="https://t.me/Suyunov_dev1"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-6 block bg-gradient-to-r from-[#2AABEE] to-[#229ED9] rounded-2xl p-4 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all hover:scale-[1.02] active:scale-95"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Send size={22} className="text-white" />
-            </div>
-            <div className="flex-1">
-              <p className="text-white font-bold text-sm">Adminga murojat qilish</p>
-              <p className="text-blue-100 text-xs mt-0.5">
-                Telegram orqali tezkor aloqa
-              </p>
-            </div>
-            <ExternalLink size={18} className="text-white/60 flex-shrink-0" />
-          </div>
-        </a>
 
         {/* Logout Button */}
         <button

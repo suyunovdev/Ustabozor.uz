@@ -57,24 +57,68 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ message: 'Email yoki parol noto\'g\'ri' });
         }
 
+        const now = new Date().toISOString();
+        await userDoc.ref.update({ isOnline: true, lastSeen: now });
+
         const user = docToObj(userDoc);
         const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
         console.log(`Login success: id=${user.id}, role=${user.role}`);
-        res.json({ ...user, token });
+        res.json({ ...user, isOnline: true, lastSeen: now, token });
     } catch (error) {
         console.error('Login error:', error.message);
         res.status(500).json({ message: 'Server xatosi' });
     }
 });
 
+// --- VALIDATSIYA YORDAMCHILARI ---
+
+// Telefon raqamini normallashtirish: +998901234567 formatiga
+const normalizePhone = (phone) => {
+    if (!phone) return '';
+    let p = phone.replace(/[\s\-\(\)]/g, '');
+    if (p.startsWith('998')) p = '+' + p;
+    if (p.startsWith('8') && p.length === 11) p = '+7' + p.slice(1); // RU format
+    if (!p.startsWith('+')) p = '+998' + p;
+    return p;
+};
+
+// O'zbekiston telefon formati: +998 XX XXXXXXX (12 ta raqam +998 bilan)
+const isValidUzPhone = (phone) => /^\+998[0-9]{9}$/.test(phone);
+
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+
+const isValidName = (name) => /^[a-zA-ZÀ-ÿа-яА-ЯёЁ\u0400-\u04FF\u0100-\u017F'`\- ]{2,50}$/.test(name.trim());
+
 // Register
 router.post('/register', async (req, res) => {
     try {
         console.log('Register attempt:', req.body.email);
 
+        const { name, surname, email, password, phone } = req.body;
+
+        // --- INPUT VALIDATSIYA ---
+        if (!name || !name.trim()) return res.status(400).json({ message: 'Ism kiritilishi shart' });
+        if (!isValidName(name)) return res.status(400).json({ message: 'Ism faqat harflardan iborat bo\'lishi kerak (min 2 ta)' });
+
+        if (!surname || !surname.trim()) return res.status(400).json({ message: 'Familiya kiritilishi shart' });
+        if (!isValidName(surname)) return res.status(400).json({ message: 'Familiya faqat harflardan iborat bo\'lishi kerak (min 2 ta)' });
+
+        if (!email || !email.trim()) return res.status(400).json({ message: 'Email kiritilishi shart' });
+        if (!isValidEmail(email.trim().toLowerCase())) return res.status(400).json({ message: 'Email formati noto\'g\'ri (masalan: ism@gmail.com)' });
+
+        if (!password) return res.status(400).json({ message: 'Parol kiritilishi shart' });
+        if (password.length < 6) return res.status(400).json({ message: 'Parol kamida 6 ta belgidan iborat bo\'lishi kerak' });
+
+        const normalizedPhone = phone ? normalizePhone(phone) : '';
+        if (!normalizedPhone) return res.status(400).json({ message: 'Telefon raqam kiritilishi shart' });
+        if (!isValidUzPhone(normalizedPhone)) return res.status(400).json({ message: 'Telefon raqam O\'zbekiston formatida bo\'lishi kerak (+998XXXXXXXXX)' });
+
+        const cleanEmail = email.trim().toLowerCase();
+
+        // --- DUPLIKAT TEKSHIRUV ---
         const existing = await usersRef()
-            .where('email', '==', req.body.email)
+            .where('email', '==', cleanEmail)
             .limit(1)
             .get();
 
@@ -82,28 +126,26 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ message: 'Bu email allaqachon ro\'yxatdan o\'tgan' });
         }
 
-        // Telefon raqam bo'yicha ham tekshirish
-        if (req.body.phone) {
-            const phoneExists = await usersRef()
-                .where('phone', '==', req.body.phone)
-                .limit(1)
-                .get();
+        const phoneExists = await usersRef()
+            .where('phone', '==', normalizedPhone)
+            .limit(1)
+            .get();
 
-            if (!phoneExists.empty) {
-                return res.status(400).json({ message: 'Bu telefon raqam allaqachon ro\'yxatdan o\'tgan' });
-            }
+        if (!phoneExists.empty) {
+            return res.status(400).json({ message: 'Bu telefon raqam allaqachon ro\'yxatdan o\'tgan' });
         }
 
-        const hashedPassword = await bcrypt.hash(req.body.password, 10);
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         const userData = {
-            name: req.body.name || '',
-            surname: req.body.surname || '',
-            phone: req.body.phone || '',
-            email: req.body.email,
+            name: name.trim(),
+            surname: surname.trim(),
+            phone: normalizedPhone,
+            email: cleanEmail,
             password: hashedPassword,
             role: (req.body.role === 'ADMIN') ? 'CUSTOMER' : (req.body.role || 'CUSTOMER'),
             avatar: req.body.avatar || '',
+            lastSeen: new Date().toISOString(),
             balance: 0,
             rating: 5.0,
             ratingCount: 0,

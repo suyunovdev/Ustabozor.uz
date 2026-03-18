@@ -538,26 +538,5 @@ export const ApiService = {
         }
     },
 
-    // --- TELEGRAM AUTH ---
-    telegramAuth: async (initData: string): Promise<any> => {
-        return await request<any>('/telegram/auth', {
-            method: 'POST',
-            body: JSON.stringify({ initData })
-        });
-    },
-
-    telegramRegister: async (initData: string, role: string, phone?: string, skills?: string[], hourlyRate?: number): Promise<any> => {
-        return await request<any>('/telegram/register', {
-            method: 'POST',
-            body: JSON.stringify({ initData, role, phone, skills, hourlyRate })
-        });
-    },
-
-    telegramLink: async (initData: string, email: string, password: string): Promise<any> => {
-        return await request<any>('/telegram/link', {
-            method: 'POST',
-            body: JSON.stringify({ initData, email, password })
-        });
-    }
 };
 

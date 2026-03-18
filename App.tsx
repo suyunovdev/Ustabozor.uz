@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Layout } from './components/Layout';
 import { Auth } from './pages/Auth';
@@ -18,11 +18,9 @@ import { AdminFinance } from './pages/admin/AdminFinance';
 import { ChatPage } from './pages/ChatPage';
 import { MapFinder } from './pages/MapFinder';
 import { OrderDetail } from './pages/OrderDetail';
-import { TelegramRegister } from './pages/TelegramRegister';
 import { User, UserRole } from './types';
 import { ApiService } from './services/api';
 import { requestUserLocation, getSavedLocation, isLocationStale, hasValidSavedLocation, LocationData } from './services/locationService';
-import { initTelegramWebApp, isTelegramWebApp, getTelegramUser, getTelegramInitData } from './services/telegram';
 import { LocationGate } from './components/LocationGate';
 import { BannedScreen } from './components/BannedScreen';
 
@@ -49,54 +47,6 @@ const App = () => {
     const saved = localStorage.getItem('theme');
     return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
-
-  const [showTelegramRegister, setShowTelegramRegister] = useState(false);
-  const [telegramRegistrationData, setTelegramRegistrationData] = useState<{ initData: string; tgUser: any } | null>(null);
-  const [telegramLoading, setTelegramLoading] = useState(false);
-
-  // Telegram Web App initialization + auto-login
-  useEffect(() => {
-    if (!isTelegramWebApp()) return;
-
-    const initialized = initTelegramWebApp();
-    if (!initialized) return;
-
-    const initData = getTelegramInitData();
-    const tgUser = getTelegramUser();
-
-    if (!initData || !tgUser) {
-      return;
-    }
-
-    // Telegram WebApp'da har doim server'dan auth qilish
-    // (bot orqali ro'yxatdan o'tgan bo'lsa, cached session eski bo'lishi mumkin)
-    setTelegramLoading(true);
-
-    ApiService.telegramAuth(initData)
-      .then((result: any) => {
-        if (result.user) {
-          // Foydalanuvchi topildi — avtomatik login
-          // Eski cached session bilan bir xil bo'lsa ham, yangilash
-          handleLogin(result.user);
-          toast.success(`Xush kelibsiz, ${result.user.name}!`, { autoClose: 2000 });
-        } else if (result.isNewUser) {
-          // Yangi foydalanuvchi — eski cached session'ni tozalash
-          sessionStorage.removeItem('currentUser');
-          localStorage.removeItem('currentUser');
-          setUser(null);
-          // Ro'yxatdan o'tish formasi
-          setTelegramRegistrationData({ initData, tgUser });
-          setShowTelegramRegister(true);
-        }
-      })
-      .catch((err: any) => {
-        console.error('Telegram auth error:', err);
-        toast.error('Telegram avtorizatsiya xatosi', { autoClose: 3000 });
-      })
-      .finally(() => {
-        setTelegramLoading(false);
-      });
-  }, []);
 
   // Dark mode effect
   useEffect(() => {
@@ -267,29 +217,8 @@ const App = () => {
   return (
     <Router>
       <ToastContainer position="top-right" autoClose={3000} theme={isDarkMode ? 'dark' : 'light'} aria-label="Notifications" />
-      {telegramLoading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-gray-900">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-300">Telegram orqali kirish...</p>
-          </div>
-        </div>
-      )}
       <Routes>
-        {!user && showTelegramRegister && telegramRegistrationData ? (
-          <Route path="*" element={
-            <TelegramRegister
-              initData={telegramRegistrationData.initData}
-              tgUser={telegramRegistrationData.tgUser}
-              onRegister={(registeredUser: User) => {
-                setShowTelegramRegister(false);
-                setTelegramRegistrationData(null);
-                handleLogin(registeredUser);
-              }}
-              onLogin={handleLogin}
-            />
-          } />
-        ) : !user ? (
+        {!user ? (
           <Route path="*" element={<Auth onLogin={handleLogin} />} />
         ) : (
           <Route

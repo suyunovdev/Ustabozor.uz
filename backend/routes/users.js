@@ -97,6 +97,11 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
             updatedData.isOnline = updatedData.isOnline === 'true';
         }
 
+        // isOnline: true kelsa — lastSeen ni ham yangilash
+        if (updatedData.isOnline === true) {
+            updatedData.lastSeen = new Date().toISOString();
+        }
+
         // Handle location object
         if (updatedData.location) {
             if (typeof updatedData.location === 'string') {
@@ -362,23 +367,6 @@ router.post('/:id/ban', requireAuth, requireAdmin, async (req, res) => {
                 updatedAt: FieldValue.serverTimestamp()
             });
 
-            // Telegram xabar yuborish
-            if (userData.telegramId) {
-                try {
-                    const telegramRoutes = require('./telegram');
-                    if (telegramRoutes.sendTelegramMessage) {
-                        const msg = `⚠️ <b>Hisobingiz bloklandi</b>\n\n` +
-                            `📋 <b>Sabab:</b> ${reason || 'Ko\'rsatilmagan'}\n` +
-                            `⏰ <b>Muddat:</b> ${durationText}\n` +
-                            `📅 <b>Sana:</b> ${now.toLocaleDateString('uz-UZ')}\n\n` +
-                            `Agar noto'g'ri bloklangan deb hisoblasangiz, admin bilan bog'laning.`;
-                        await telegramRoutes.sendTelegramMessage(userData.telegramId, msg);
-                    }
-                } catch (e) {
-                    console.error('Telegram ban notification error:', e.message);
-                }
-            }
-
             // In-app notification yaratish
             try {
                 const { getDb } = require('../config/db');
@@ -407,20 +395,6 @@ router.post('/:id/ban', requireAuth, requireAdmin, async (req, res) => {
                 blockedAt: FieldValue.delete(),
                 updatedAt: FieldValue.serverTimestamp()
             });
-
-            // Telegram xabar
-            if (userData.telegramId) {
-                try {
-                    const telegramRoutes = require('./telegram');
-                    if (telegramRoutes.sendTelegramMessage) {
-                        const msg = `✅ <b>Hisobingiz blokdan chiqarildi</b>\n\n` +
-                            `Platformadan yana foydalanishingiz mumkin.`;
-                        await telegramRoutes.sendTelegramMessage(userData.telegramId, msg);
-                    }
-                } catch (e) {
-                    console.error('Telegram unban notification error:', e.message);
-                }
-            }
 
             // In-app notification
             try {

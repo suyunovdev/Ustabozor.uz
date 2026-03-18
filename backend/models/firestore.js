@@ -3,6 +3,14 @@ const { FieldValue, Timestamp } = require('firebase-admin/firestore');
 
 const getCollection = (name) => getDb().collection(name);
 
+// 5 daqiqa ichida heartbeat kelmasa — offline hisoblanadi
+const ONLINE_TIMEOUT_MS = 5 * 60 * 1000;
+
+const computeOnlineStatus = (data) => {
+    if (!data.lastSeen) return false;
+    return Date.now() - new Date(data.lastSeen).getTime() < ONLINE_TIMEOUT_MS;
+};
+
 const docToObj = (doc) => {
     if (!doc.exists) return null;
     const data = doc.data();
@@ -16,6 +24,8 @@ const docToObj = (doc) => {
             converted[key] = value;
         }
     }
+    // isOnline ni lastSeen asosida qayta hisoblash — stored boolean'ga ishonmaslik
+    converted.isOnline = computeOnlineStatus(converted);
     return { _id: doc.id, id: doc.id, ...converted };
 };
 

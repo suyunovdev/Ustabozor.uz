@@ -77,10 +77,6 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/upload', require('./routes/upload'));
 
-// Telegram Bot route
-const telegramRoutes = require('./routes/telegram');
-app.use('/api/telegram', telegramRoutes);
-
 // Storage test endpoint
 app.get('/api/test-storage', async (req, res) => {
     const { getBucket } = require('./config/db');
@@ -100,3 +96,39 @@ app.get('/api/test-storage', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
+// Online status cleanup — har 5 daqiqada eskirgan "online" statuslarni tozalash
+const ONLINE_TIMEOUT_MS = 5 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+
+async function cleanupStaleOnlineStatuses() {
+    try {
+        const { getDb } = require('./config/db');
+        const db = getDb();
+        const cutoff = new Date(Date.now() - ONLINE_TIMEOUT_MS).toISOString();
+
+        const snapshot = await db.collection('users')
+            .where('isOnline', '==', true)
+            .get();
+
+        if (snapshot.empty) return;
+
+        const stale = snapshot.docs.filter(doc => {
+            const lastSeen = doc.data().lastSeen;
+            return !lastSeen || lastSeen < cutoff;
+        });
+
+        if (stale.length === 0) return;
+
+        const batch = db.batch();
+        stale.forEach(doc => {
+            batch.update(doc.ref, { isOnline: false });
+        });
+        await batch.commit();
+        console.log(`🧹 Online cleanup: ${stale.length} ta foydalanuvchi offline qilindi`);
+    } catch (e) {
+        console.error('Online cleanup error:', e.message);
+    }
+}
+
+setInterval(cleanupStaleOnlineStatuses, CLEANUP_INTERVAL_MS);
