@@ -1,6 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole, WorkerProfile } from '../types';
-import { X, Save, User as UserIcon, Phone, Mail, Briefcase, Banknote, Camera, Plus } from 'lucide-react';
+import { X, Save, User as UserIcon, Phone, Mail, Briefcase, Banknote, Camera, Plus, ZoomIn, Check } from 'lucide-react';
+
+// ---- Avatar Crop Modal ----
+const AvatarCropModal: React.FC<{
+    src: string;
+    onConfirm: (file: File, previewUrl: string) => void;
+    onCancel: () => void;
+}> = ({ src, onConfirm, onCancel }) => {
+    const [zoom, setZoom] = useState(1);
+    const imgRef = useRef<HTMLImageElement>(null);
+
+    const handleConfirm = () => {
+        const img = imgRef.current;
+        if (!img) return;
+
+        const canvas = document.createElement('canvas');
+        const outputSize = 400;
+        canvas.width = outputSize;
+        canvas.height = outputSize;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Center-crop at current zoom
+        const naturalMin = Math.min(img.naturalWidth, img.naturalHeight);
+        const cropSize = naturalMin / zoom;
+        const sx = (img.naturalWidth - cropSize) / 2;
+        const sy = (img.naturalHeight - cropSize) / 2;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(img, sx, sy, cropSize, cropSize, 0, 0, outputSize, outputSize);
+        ctx.restore();
+
+        canvas.toBlob((blob) => {
+            if (!blob) return;
+            const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+            const url = URL.createObjectURL(blob);
+            onConfirm(file, url);
+        }, 'image/jpeg', 0.92);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+                <h3 className="text-base font-bold text-gray-900 dark:text-white text-center mb-5">Rasmni kesish</h3>
+
+                {/* Circular preview */}
+                <div className="flex justify-center mb-5">
+                    <div className="w-52 h-52 rounded-full overflow-hidden border-4 border-blue-500 shadow-xl bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+                        <img
+                            ref={imgRef}
+                            src={src}
+                            alt="crop"
+                            className="w-full h-full object-cover transition-transform duration-100"
+                            style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                            draggable={false}
+                        />
+                    </div>
+                </div>
+
+                {/* Zoom slider */}
+                <div className="mb-6">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                        <span>Kichik</span>
+                        <div className="flex items-center gap-1 text-blue-500 font-medium">
+                            <ZoomIn size={14} /> Zoom: {zoom.toFixed(1)}x
+                        </div>
+                        <span>Katta</span>
+                    </div>
+                    <input
+                        type="range"
+                        min={1}
+                        max={3}
+                        step={0.05}
+                        value={zoom}
+                        onChange={(e) => setZoom(parseFloat(e.target.value))}
+                        className="w-full accent-blue-500"
+                    />
+                </div>
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={onCancel}
+                        className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold rounded-xl active:scale-95 transition-transform"
+                    >
+                        Bekor
+                    </button>
+                    <button
+                        onClick={handleConfirm}
+                        className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                    >
+                        <Check size={18} /> Tasdiqlash
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 interface EditProfileModalProps {
     isOpen: boolean;
@@ -16,13 +115,15 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const [cropSrc, setCropSrc] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isOpen) {
             setFormData({ ...user });
             setPreviewUrl(null);
             setSelectedFile(null);
+            setCropSrc(null);
         }
     }, [isOpen, user]);
 
@@ -35,9 +136,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setSelectedFile(file);
-            setPreviewUrl(URL.createObjectURL(file));
+            const url = URL.createObjectURL(e.target.files[0]);
+            setCropSrc(url);
+            // Reset input so same file can be re-selected
+            e.target.value = '';
         }
     };
 
@@ -111,6 +213,18 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
     };
 
     return (
+        <>
+        {cropSrc && (
+            <AvatarCropModal
+                src={cropSrc}
+                onConfirm={(file, url) => {
+                    setSelectedFile(file);
+                    setPreviewUrl(url);
+                    setCropSrc(null);
+                }}
+                onCancel={() => setCropSrc(null)}
+            />
+        )}
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
             <div className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn border border-gray-100 dark:border-gray-800">
 
@@ -310,5 +424,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
 
             </div>
         </div>
+        </>
     );
 };

@@ -278,6 +278,48 @@ router.put('/:id', async (req, res) => {
         let order = docToObj(updated);
         order = await populateOrder(order);
 
+        // Review qo'shilgan bo'lsa ishchi ratingini qayta hisoblash
+        if (updateData.review && updateData.review.rating) {
+            const orderData = doc.data();
+            const workerId = orderData.workerId;
+            if (workerId) {
+                try {
+                    const db = getDb();
+                    // Bu ishchi uchun barcha bajarilgan buyurtmalarni olish
+                    const workerOrdersSnap = await ordersRef()
+                        .where('workerId', '==', workerId)
+                        .where('status', '==', 'COMPLETED')
+                        .get();
+
+                    const ratings = [];
+                    workerOrdersSnap.docs.forEach(d => {
+                        const r = d.data().review;
+                        if (r && typeof r.rating === 'number') {
+                            ratings.push(r.rating);
+                        }
+                    });
+
+                    // Agar yangi review hali qo'shilmagan bo'lsa (same doc) qo'shamiz
+                    const isAlreadyIncluded = workerOrdersSnap.docs.some(d => d.id === req.params.id && d.data().review?.rating);
+                    if (!isAlreadyIncluded) {
+                        ratings.push(updateData.review.rating);
+                    }
+
+                    if (ratings.length > 0) {
+                        const avgRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
+                        await db.collection('users').doc(workerId).update({
+                            rating: Math.round(avgRating * 10) / 10,
+                            ratingCount: ratings.length
+                        });
+                        console.log(`Worker ${workerId} rating updated: ${Math.round(avgRating * 10) / 10} (${ratings.length} reviews)`);
+                    }
+                } catch (ratingError) {
+                    console.error('Error updating worker rating:', ratingError);
+                    // Rating update xatosi asosiy javobni bloklamasin
+                }
+            }
+        }
+
         cache.delete(`order:${req.params.id}`);
         invalidateOrderCache();
         res.json(order);

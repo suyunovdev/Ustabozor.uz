@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { MockService } from '../../services/mockDb';
 import { ApiService } from '../../services/api';
 import { Order, OrderStatus, User } from '../../types';
@@ -35,36 +35,52 @@ export const MyOrders = () => {
 
   const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+  const prevOrderStatusesRef = useRef<Record<string, string>>({});
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async (showLoader = false) => {
+    if (showLoader) setIsLoading(true);
     const data = await MockService.getOrders();
     if (currentUser) {
       const myOrders = data.filter(o => o.customerId === currentUser.id);
       myOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-      // Load worker info for each order
       const ordersWithWorkerInfo: ExtendedOrder[] = await Promise.all(
         myOrders.map(async (order) => {
           let workerInfo: User | undefined;
           if (order.workerId) {
             try {
               workerInfo = await ApiService.getUserById(order.workerId);
-            } catch (e) {
-              console.error('Could not load worker info:', e);
-            }
+            } catch (e) { /* silent */ }
           }
           return { ...order, workerInfo };
         })
       );
 
+      // Status o'zgarsa toast chiqarish
+      ordersWithWorkerInfo.forEach(order => {
+        const prev = prevOrderStatusesRef.current[order.id];
+        if (prev && prev !== order.status) {
+          const labels: Record<string, string> = {
+            ACCEPTED: "Buyurtmangiz qabul qilindi! ✅",
+            IN_PROGRESS: "Ish boshlandi! ⚙️",
+            COMPLETED: "Ish bajarildi! Baholashni unutmang ⭐",
+            CANCELLED: "Buyurtma bekor qilindi ❌",
+          };
+          if (labels[order.status]) toast.info(labels[order.status]);
+        }
+        prevOrderStatusesRef.current[order.id] = order.status;
+      });
+
       setOrders(ordersWithWorkerInfo);
     }
-    setIsLoading(false);
-  };
+    if (showLoader) setIsLoading(false);
+  }, []);
 
   useEffect(() => {
-    loadOrders();
-  }, []);
+    loadOrders(true);
+    const interval = setInterval(() => loadOrders(false), 30000);
+    return () => clearInterval(interval);
+  }, [loadOrders]);
 
   const openReviewModal = (orderId: string) => {
     setSelectedOrderId(orderId);
@@ -227,14 +243,36 @@ export const MyOrders = () => {
       {/* Orders List */}
       <div className="p-4 space-y-4">
         {filteredOrders.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShoppingBag size={40} className="text-gray-400" />
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner
+              bg-gray-100 dark:bg-gray-800">
+              {activeTab === 'COMPLETED'
+                ? <CheckCircle size={38} className="text-green-400" />
+                : activeTab === 'ACTIVE'
+                  ? <Clock size={38} className="text-blue-400" />
+                  : <ShoppingBag size={38} className="text-gray-400" />}
             </div>
-            <p className="text-gray-500 dark:text-gray-400 mb-2">Buyurtmalar topilmadi</p>
-            <Link to="/customer/home" className="text-blue-600 dark:text-blue-400 font-medium">
-              Yangi buyurtma yarating →
-            </Link>
+
+            <h3 className="text-base font-bold text-gray-800 dark:text-white mb-1">
+              {activeTab === 'ALL' && "Hali buyurtma yo'q"}
+              {activeTab === 'ACTIVE' && "Faol buyurtma yo'q"}
+              {activeTab === 'COMPLETED' && "Bajarilgan ish yo'q"}
+            </h3>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mb-6 max-w-xs">
+              {activeTab === 'ALL' && "Birinchi buyurtmangizni bering va malakali usta toping"}
+              {activeTab === 'ACTIVE' && "Yangi buyurtma bering — usta tez topiladi"}
+              {activeTab === 'COMPLETED' && "Ish bajarilgach, bu yerda ko'rsatiladi"}
+            </p>
+
+            {activeTab !== 'COMPLETED' && (
+              <Link
+                to="/customer/create"
+                className="bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold px-8 py-3.5 rounded-2xl shadow-lg shadow-orange-500/30 flex items-center gap-2 transition-transform active:scale-95"
+              >
+                <Package size={18} />
+                Buyurtma berish
+              </Link>
+            )}
           </div>
         ) : (
           filteredOrders.map((order) => (

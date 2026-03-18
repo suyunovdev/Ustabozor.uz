@@ -151,7 +151,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, 
                                         {getIcon(notification.type)}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-start">
+                                        <div className="flex justify-between items-start gap-2">
                                             <h4 className={`text-sm font-semibold ${notification.isRead ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-white'}`}>
                                                 {notification.title}
                                             </h4>
@@ -162,30 +162,30 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, 
                                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
                                             {notification.message}
                                         </p>
-                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-2">
-                                            {getTimeAgo(notification.createdAt)}
-                                        </p>
+                                        <div className="flex items-center justify-between mt-2">
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider">
+                                                {getTimeAgo(notification.createdAt)}
+                                            </p>
+                                            <div className="flex gap-1">
+                                                {!notification.isRead && (
+                                                    <button
+                                                        onClick={() => handleMarkAsRead(notification.id)}
+                                                        className="p-1.5 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-lg active:bg-green-200 transition-colors"
+                                                        aria-label="O'qilgan deb belgilash"
+                                                    >
+                                                        <Check size={13} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDelete(notification.id)}
+                                                    className="p-1.5 bg-red-100 dark:bg-red-900/30 text-red-500 rounded-lg active:bg-red-200 transition-colors"
+                                                    aria-label="O'chirish"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-
-                                {/* Action Buttons */}
-                                <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {!notification.isRead && (
-                                        <button
-                                            onClick={() => handleMarkAsRead(notification.id)}
-                                            className="p-2.5 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
-                                            aria-label="O'qilgan deb belgilash"
-                                        >
-                                            <Check size={14} />
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => handleDelete(notification.id)}
-                                        className="p-1.5 bg-red-100 dark:bg-red-900/30 text-red-500 rounded-lg hover:bg-red-200 transition-colors"
-                                        title="O'chirish"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
                                 </div>
                             </div>
                         ))

@@ -44,6 +44,27 @@ const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c;
 };
 
+// Job card skeleton
+const JobCardSkeleton = () => (
+  <div className="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-100 dark:border-gray-800 animate-pulse">
+    <div className="flex justify-between items-start mb-3">
+      <div className="h-5 w-20 bg-gray-200 dark:bg-gray-700 rounded-md" />
+      <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded-md" />
+    </div>
+    <div className="h-5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded-lg mb-2" />
+    <div className="h-3.5 w-full bg-gray-200 dark:bg-gray-700 rounded mb-1" />
+    <div className="h-3.5 w-2/3 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
+    <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
+      <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded" />
+    </div>
+    <div className="flex gap-2">
+      <div className="flex-1 h-11 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+      <div className="flex-[2] h-11 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+    </div>
+  </div>
+);
+
 // Kategoriyalar ro'yxati
 const CATEGORIES = [
   'Barchasi', 'Santexnika', 'Elektr', 'Tozalash', 'Yuk tashish',
@@ -158,19 +179,18 @@ export const JobFeed = () => {
     return { ...order, customerInfo, aiMatch, distance };
   };
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (showLoader = false) => {
+    if (showLoader) setLoading(true);
     try {
       const data = await MockService.getOrders();
-
-      // Barcha buyurtmalarni saqlash (bookmarks uchun)
       const allEnrichedOrders = await Promise.all(data.map(enrichOrder));
       setAllOrders(allEnrichedOrders);
-
-      // Faqat PENDING buyurtmalarni asosiy ro'yxatga
       const pendingOrders = allEnrichedOrders.filter(o => o.status === OrderStatus.PENDING);
       setOrders(pendingOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
+    } finally {
+      if (showLoader) setLoading(false);
     }
   }, [workerSkills, userLocation]);
 
@@ -203,7 +223,7 @@ export const JobFeed = () => {
 
   // Initial load
   useEffect(() => {
-    fetchOrders();
+    fetchOrders(true);
     fetchWorkerStats();
 
     // Get user location from localStorage (already requested on login)
@@ -436,129 +456,107 @@ export const JobFeed = () => {
       </div>
 
       {/* ===== SEARCH & FILTERS ===== */}
-      <div className="bg-white dark:bg-gray-900 p-4 sticky top-0 z-20 shadow-sm border-b border-gray-100 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 px-4 pt-3 pb-2 sticky top-0 z-20 shadow-sm border-b border-gray-100 dark:border-gray-800">
 
-        {/* Search Bar */}
-        <div className="relative mb-3">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Ish qidirish..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 dark:text-white"
-          />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-              <X size={16} className="text-gray-400" />
-            </button>
-          )}
-        </div>
+        {/* Search + icon row */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Ish qidirish..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-2.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 dark:text-white"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                <X size={15} className="text-gray-400" />
+              </button>
+            )}
+          </div>
 
-        {/* Filter Row */}
-        <div className="flex items-center justify-between gap-2 mb-3">
-          {/* Refresh */}
-          <button
-            onClick={handleRefresh}
-            className={`p-2 bg-gray-100 dark:bg-gray-800 rounded-lg ${refreshing ? 'animate-spin' : ''}`}
-          >
-            <RefreshCw size={18} className="text-gray-500 dark:text-gray-400" />
+          {/* Icon buttons */}
+          <button onClick={handleRefresh} className={`p-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl flex-shrink-0 ${refreshing ? 'animate-spin' : ''}`}>
+            <RefreshCw size={17} className="text-gray-500 dark:text-gray-400" />
           </button>
-
-          {/* Sort Dropdown */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm border-0 dark:text-white"
-          >
-            {SORT_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-
-          {/* Bookmarks Toggle */}
-          <button
-            onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
-            className={`p-2 rounded-lg relative ${showBookmarksOnly ? 'bg-yellow-100 dark:bg-yellow-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}
-          >
-            {showBookmarksOnly ? <BookmarkCheck size={18} className="text-yellow-600" /> : <Bookmark size={18} className="text-gray-400" />}
+          <button onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')} className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl flex-shrink-0">
+            {viewMode === 'list' ? <Map size={17} className="text-gray-500 dark:text-gray-400" /> : <List size={17} className="text-gray-500 dark:text-gray-400" />}
+          </button>
+          <button onClick={() => setShowBookmarksOnly(!showBookmarksOnly)} className={`p-2.5 rounded-xl flex-shrink-0 relative ${showBookmarksOnly ? 'bg-yellow-100 dark:bg-yellow-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
+            {showBookmarksOnly ? <BookmarkCheck size={17} className="text-yellow-600" /> : <Bookmark size={17} className="text-gray-400" />}
             {bookmarks.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-yellow-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                {bookmarks.length}
-              </span>
+              <span className="absolute -top-1 -right-1 bg-yellow-500 text-white text-[9px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center">{bookmarks.length}</span>
             )}
           </button>
-
-          {/* View Toggle */}
-          <button
-            onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
-            className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg"
-          >
-            {viewMode === 'list' ? <Map size={18} className="text-gray-500 dark:text-gray-400" /> : <List size={18} className="text-gray-500 dark:text-gray-400" />}
-          </button>
-
-          {/* More Filters */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`p-2 rounded-lg ${showFilters ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}
-          >
-            <Filter size={18} className={showFilters ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'} />
+          <button onClick={() => setShowFilters(!showFilters)} className={`p-2.5 rounded-xl flex-shrink-0 ${showFilters ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
+            <Filter size={17} className={showFilters ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'} />
           </button>
         </div>
 
-        {/* Price Filter (collapsible) */}
-        {showFilters && (
-          <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl mb-3 animate-fadeIn">
-            <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">
-              Narx oralig'i: {priceRange[0].toLocaleString()} - {priceRange[1].toLocaleString()} so'm
-            </label>
-            <input
-              type="range"
-              min={0}
-              max={10000000}
-              step={100000}
-              value={priceRange[1]}
-              onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
-              className="w-full accent-blue-500"
-            />
-          </div>
-        )}
-
-        {/* Category Pills */}
-        <div className="flex space-x-2 overflow-x-auto no-scrollbar pb-1">
+        {/* Sort pills */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+          {SORT_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setSortBy(opt.value)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all flex-shrink-0 ${sortBy === opt.value
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+          {/* Category separator */}
+          <div className="w-px bg-gray-200 dark:bg-gray-700 mx-1 self-stretch flex-shrink-0" />
           {CATEGORIES.map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all ${selectedCategory === cat
-                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'
-                }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all flex-shrink-0 ${selectedCategory === cat
+                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
+              }`}
             >
               {cat}
             </button>
           ))}
         </div>
 
-        {/* Radius Filter - Masofa bo'yicha */}
-        <div className="mt-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">📍 Masofa bo'yicha:</p>
-          <div className="flex space-x-2 overflow-x-auto no-scrollbar">
-            {RADIUS_OPTIONS.map(opt => (
-              <button
-                key={opt.label}
-                onClick={() => setRadiusFilter(opt.value)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all flex items-center gap-1 ${radiusFilter === opt.value
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50'
-                  }`}
-              >
-                <span>{opt.icon}</span>
-                {opt.label}
-              </button>
-            ))}
+        {/* Collapsible: Price + Radius */}
+        {showFilters && (
+          <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl mb-2 space-y-3 animate-fadeIn">
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
+                💰 Narx: {priceRange[0].toLocaleString()} — {priceRange[1].toLocaleString()} so'm
+              </label>
+              <input
+                type="range" min={0} max={10000000} step={100000}
+                value={priceRange[1]}
+                onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
+                className="w-full accent-blue-500"
+              />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">📍 Masofa:</p>
+              <div className="flex gap-2 flex-wrap">
+                {RADIUS_OPTIONS.map(opt => (
+                  <button
+                    key={opt.label}
+                    onClick={() => setRadiusFilter(opt.value)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all flex items-center gap-1 ${radiusFilter === opt.value
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700'
+                    }`}
+                  >
+                    <span>{opt.icon}</span>{opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ===== MAP VIEW ===== */}
@@ -605,6 +603,12 @@ export const JobFeed = () => {
 
       {/* ===== JOB CARDS ===== */}
       <div className="p-4 space-y-4">
+        {loading ? (
+          <>
+            {[...Array(3)].map((_, i) => <JobCardSkeleton key={i} />)}
+          </>
+        ) : (
+        <>
         {/* Results count */}
         <p className="text-xs text-gray-500 dark:text-gray-400">
           {filteredOrders.length} ta ish topildi
@@ -673,9 +677,15 @@ export const JobFeed = () => {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{order.customerInfo.name}</p>
                   <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <span className="flex items-center"><Star size={10} className="text-yellow-500 mr-0.5" /> {order.customerInfo.rating?.toFixed(1) || '5.0'}</span>
-                    <span>•</span>
-                    <span>{order.customerInfo.ratingCount || 0} ta baho</span>
+                    {order.customerInfo.rating != null ? (
+                      <>
+                        <span className="flex items-center"><Star size={10} className="text-yellow-500 mr-0.5" /> {order.customerInfo.rating.toFixed(1)}</span>
+                        <span>•</span>
+                        <span>{order.customerInfo.ratingCount || 0} ta baho</span>
+                      </>
+                    ) : (
+                      <span>Baholanmagan</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -757,6 +767,8 @@ export const JobFeed = () => {
               </button>
             )}
           </div>
+        )}
+        </>
         )}
       </div>
 

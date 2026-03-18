@@ -18,6 +18,51 @@ interface ExtendedOrder extends Order {
   customerInfo?: User;
 }
 
+const JobCardSkeleton = () => (
+  <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 animate-pulse relative overflow-hidden">
+    <div className="absolute top-0 left-0 w-1.5 h-full bg-gray-200 dark:bg-gray-700" />
+    <div className="pl-3">
+      <div className="flex justify-between items-start mb-4">
+        <div className="space-y-2">
+          <div className="h-5 w-40 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+          <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
+        </div>
+        <div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+      </div>
+      <div className="space-y-3 mb-4">
+        <div className="h-3.5 w-36 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-3.5 w-28 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-3.5 w-32 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-16 w-full bg-gray-200 dark:bg-gray-700 rounded-xl" />
+        <div className="h-20 w-full bg-gray-200 dark:bg-gray-700 rounded-xl" />
+      </div>
+      <div className="flex gap-3">
+        <div className="flex-1 h-11 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+        <div className="flex-1 h-11 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+      </div>
+    </div>
+  </div>
+);
+
+const EarningsSkeletons = () => (
+  <div className="space-y-4 animate-pulse">
+    <div className="grid grid-cols-2 gap-3">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+            <div className="space-y-1.5">
+              <div className="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
+              <div className="h-5 w-20 bg-gray-200 dark:bg-gray-700 rounded" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="h-48 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700" />
+  </div>
+);
+
 interface WorkerStats {
   totalEarnings: number;
   pendingEarnings: number;
@@ -262,9 +307,9 @@ export const MyJobs = () => {
       {/* Content */}
       <div className="p-4 space-y-4">
         {isLoading ? (
-          <div className="flex justify-center pt-20">
-            <Loader2 className="animate-spin text-blue-600" size={32} />
-          </div>
+          activeTab === 'EARNINGS'
+            ? <EarningsSkeletons />
+            : <div className="space-y-4">{[...Array(2)].map((_, i) => <JobCardSkeleton key={i} />)}</div>
         ) : activeTab === 'EARNINGS' ? (
           /* Earnings Tab */
           <div className="space-y-4">

@@ -177,6 +177,21 @@ export const OrderDetail = () => {
         type: 'job',
     }] : [];
 
+    // Determine sticky action button
+    const primaryAction = (() => {
+        if (isWorker && status === 'PENDING')
+            return { label: 'Qabul qilish', icon: <CheckCircle size={18} />, onClick: handleAccept, cls: 'from-blue-600 to-indigo-600 shadow-blue-500/20' };
+        if (isWorker && status === 'ACCEPTED' && getWorkerId() === currentUser?.id)
+            return { label: 'Ishni boshlash', icon: <Play size={18} />, onClick: handleStart, cls: 'from-purple-600 to-violet-600 shadow-purple-500/20' };
+        if (isWorker && status === 'IN_PROGRESS' && getWorkerId() === currentUser?.id)
+            return { label: "Tugatish va to'lov olish", icon: <Flag size={18} />, onClick: handleComplete, cls: 'from-green-600 to-emerald-600 shadow-green-500/20' };
+        if (isCustomer && status === 'PENDING' && getCustomerId() === currentUser?.id)
+            return { label: 'Bekor qilish', icon: <XCircle size={18} />, onClick: handleCancel, cls: 'from-red-500 to-rose-500 shadow-red-500/20', secondary: true };
+        return null;
+    })();
+
+    const showChatBtn = isMyOrder && status !== 'CANCELLED' && status !== 'PENDING';
+
     return (
         <div className="bg-gray-50 dark:bg-gray-950 min-h-screen pb-24">
             {/* Header */}
@@ -359,59 +374,8 @@ export const OrderDetail = () => {
                     </div>
                 )}
 
-                {/* Actions */}
-                <div className="space-y-2">
-                    {/* Worker actions */}
-                    {isWorker && status === 'PENDING' && (
-                        <button
-                            onClick={handleAccept}
-                            disabled={actionLoading}
-                            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-all"
-                        >
-                            {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> Qabul qilish</>}
-                        </button>
-                    )}
-                    {isWorker && status === 'ACCEPTED' && getWorkerId() === currentUser?.id && (
-                        <button
-                            onClick={handleStart}
-                            disabled={actionLoading}
-                            className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-violet-600 text-white font-bold rounded-xl shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-all"
-                        >
-                            {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <><Play size={18} /> Ishni boshlash</>}
-                        </button>
-                    )}
-                    {isWorker && status === 'IN_PROGRESS' && getWorkerId() === currentUser?.id && (
-                        <button
-                            onClick={handleComplete}
-                            disabled={actionLoading}
-                            className="w-full py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-green-500/20 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-all"
-                        >
-                            {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <><Flag size={18} /> Tugatish va to'lov olish</>}
-                        </button>
-                    )}
-
-                    {/* Customer actions */}
-                    {isCustomer && status === 'PENDING' && getCustomerId() === currentUser?.id && (
-                        <button
-                            onClick={handleCancel}
-                            disabled={actionLoading}
-                            className="w-full py-3.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold rounded-xl border border-red-200 dark:border-red-800/30 flex items-center justify-center gap-2 disabled:opacity-50"
-                        >
-                            {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <><XCircle size={18} /> Bekor qilish</>}
-                        </button>
-                    )}
-
-                    {/* Chat */}
-                    {isMyOrder && status !== 'CANCELLED' && status !== 'PENDING' && (
-                        <button
-                            onClick={() => handleChat(isWorker ? getCustomerId() : getWorkerId())}
-                            className="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            <MessageCircle size={18} />
-                            Xabar yozish
-                        </button>
-                    )}
-                </div>
+                {/* Spacer for sticky bar */}
+                {(primaryAction || showChatBtn) && <div className="h-2" />}
 
                 {/* Similar Orders */}
                 {similarOrders.length > 0 && (
@@ -442,6 +406,36 @@ export const OrderDetail = () => {
                     </div>
                 )}
             </div>
+
+            {/* Sticky bottom action bar */}
+            {(primaryAction || showChatBtn) && (
+                <div className="fixed bottom-16 left-0 right-0 z-30 flex justify-center pointer-events-none">
+                    <div className="w-full max-w-lg px-4 pb-2 pointer-events-auto">
+                        <div className={`flex gap-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md rounded-2xl p-2 shadow-xl border border-gray-100 dark:border-gray-800`}>
+                            {showChatBtn && (
+                                <button
+                                    onClick={() => handleChat(isWorker ? getCustomerId() : getWorkerId())}
+                                    className="flex-shrink-0 p-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                                >
+                                    <MessageCircle size={20} />
+                                </button>
+                            )}
+                            {primaryAction && (
+                                <button
+                                    onClick={primaryAction.onClick}
+                                    disabled={actionLoading}
+                                    className={`flex-1 py-3.5 bg-gradient-to-r ${primaryAction.cls} text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-all`}
+                                >
+                                    {actionLoading
+                                        ? <Loader2 size={18} className="animate-spin" />
+                                        : <>{primaryAction.icon} {primaryAction.label}</>
+                                    }
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -468,12 +462,16 @@ const UserCard = ({ label, name, avatar, phone, rating, ratingCount, onChat }: {
             )}
             <div className="flex-1 min-w-0">
                 <h4 className="font-bold text-gray-900 dark:text-white truncate">{name}</h4>
-                {rating != null && (
-                    <div className="flex items-center gap-1 mt-0.5">
-                        <Star size={13} className="text-yellow-500 fill-yellow-500" />
-                        <span className="text-xs text-gray-500">{rating || '0.0'}{ratingCount != null ? ` (${ratingCount})` : ''}</span>
-                    </div>
-                )}
+                <div className="flex items-center gap-1 mt-0.5">
+                    {rating != null && ratingCount ? (
+                        <>
+                            <Star size={13} className="text-yellow-500 fill-yellow-500" />
+                            <span className="text-xs text-gray-500">{rating} ({ratingCount})</span>
+                        </>
+                    ) : (
+                        <span className="text-xs text-gray-400">Baholanmagan</span>
+                    )}
+                </div>
             </div>
             <div className="flex gap-2">
                 {phone && (

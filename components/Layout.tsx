@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Home, MapPin, PlusCircle, MessageSquare, User as UserIcon, LogOut, Briefcase, Sun, Moon, History } from './Icons';
 import { User, UserRole } from '../types';
@@ -14,7 +14,20 @@ interface LayoutProps {
   isDarkMode: boolean;
 }
 
-const MobileNav = ({ role }: { role: UserRole }) => {
+const Badge = ({ count }: { count: number }) => {
+  if (count === 0) return null;
+  return (
+    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none shadow-sm">
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+};
+
+const MobileNav = ({ role, unreadMessages, unreadNotifications }: {
+  role: UserRole;
+  unreadMessages: number;
+  unreadNotifications: number;
+}) => {
   const location = useLocation();
   const isActive = (path: string) => location.pathname === path;
 
@@ -51,13 +64,19 @@ const MobileNav = ({ role }: { role: UserRole }) => {
           {role === UserRole.WORKER && <span className={`text-[10px] font-medium mt-0.5 ${isActive('/map') ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>Xarita</span>}
         </Link>
 
-        <Link to="/chat" className={`${baseClass} ${isActive('/chat') ? activeClass : inactiveClass}`}>
-          <MessageSquare size={20} />
+        <Link to="/chat" className={`${baseClass} relative ${isActive('/chat') ? activeClass : inactiveClass}`}>
+          <div className="relative">
+            <MessageSquare size={20} />
+            <Badge count={unreadMessages} />
+          </div>
           <span>Chat</span>
         </Link>
 
-        <Link to="/profile" className={`${baseClass} ${isActive('/profile') ? activeClass : inactiveClass}`}>
-          <UserIcon size={20} />
+        <Link to="/profile" className={`${baseClass} relative ${isActive('/profile') ? activeClass : inactiveClass}`}>
+          <div className="relative">
+            <UserIcon size={20} />
+            <Badge count={unreadNotifications} />
+          </div>
           <span>Profil</span>
         </Link>
       </div>
@@ -123,26 +142,29 @@ const AdminSidebar = ({ logout, toggleTheme, isDarkMode, user }: { logout: () =>
 export const Layout: React.FC<LayoutProps> = ({ children, user, logout, toggleTheme, isDarkMode }) => {
   const displayedNotificationIds = useRef<Set<string>>(new Set());
   const isFirstLoad = useRef(true);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
-  // Poll for notifications
+  // Poll for notifications + unread counts
   useEffect(() => {
     if (!user) return;
 
     const checkNotifications = async () => {
       try {
         const notifications = await ApiService.getNotifications(user.id);
-        const unreadNotifications = notifications.filter(n => !n.isRead);
+        const unread = notifications.filter(n => !n.isRead);
+
+        // Badge count yangilash
+        setUnreadNotifications(unread.filter(n => n.type !== 'MESSAGE').length);
 
         if (isFirstLoad.current) {
-          // Initial load: just track existing unread notifications, don't spam toasts
-          unreadNotifications.forEach(n => displayedNotificationIds.current.add(n.id));
+          unread.forEach(n => displayedNotificationIds.current.add(n.id));
           isFirstLoad.current = false;
           return;
         }
 
-        unreadNotifications.forEach(notification => {
+        unread.forEach(notification => {
           if (!displayedNotificationIds.current.has(notification.id)) {
-            // Show toast for NEW notifications only
             toast.info(
               <div className="flex flex-col">
                 <span className="font-bold">{notification.title}</span>
@@ -160,23 +182,34 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, logout, toggleTh
                 }
               }
             );
-
-            // Mark as displayed in this session
             displayedNotificationIds.current.add(notification.id);
           }
         });
       } catch (error) {
-        console.error('Error checking notifications:', error);
+        // silent
       }
     };
 
-    // Initial check
+    const checkUnreadMessages = async () => {
+      try {
+        const chats = await ApiService.getUserChats(user.id);
+        const total = chats.reduce((sum, chat) => sum + (chat.unreadCount || 0), 0);
+        setUnreadMessages(total);
+      } catch {
+        // silent
+      }
+    };
+
     checkNotifications();
+    checkUnreadMessages();
 
-    // Poll every 60 seconds
-    const intervalId = setInterval(checkNotifications, 60000);
+    const notifInterval = setInterval(checkNotifications, 30000);
+    const msgInterval = setInterval(checkUnreadMessages, 15000);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(notifInterval);
+      clearInterval(msgInterval);
+    };
   }, [user]);
 
   if (!user) return <>{children}</>;
@@ -197,7 +230,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, logout, toggleTh
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex justify-center transition-colors duration-300">
       <div className="w-full max-w-lg bg-white dark:bg-gray-900 min-h-screen shadow-2xl dark:shadow-black/50 relative pb-nav transition-colors duration-300 overflow-hidden">
         {children}
-        <MobileNav role={user.role} />
+        <MobileNav
+          role={user.role}
+          unreadMessages={unreadMessages}
+          unreadNotifications={unreadNotifications}
+        />
       </div>
     </div>
   );

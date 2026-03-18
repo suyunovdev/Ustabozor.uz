@@ -218,7 +218,8 @@ export const ChatPage: React.FC = () => {
         if (selectedChatId && currentUser) {
             loadMessages(selectedChatId, true);
 
-            // Mark as read (fire and forget)
+            // Mark as delivered then as read (fire and forget)
+            ChatService.markMessagesDelivered(selectedChatId, currentUser.id).catch(() => { });
             ChatService.markAsRead(selectedChatId, currentUser.id).catch(() => { });
 
             // Polling for messages - 4 seconds

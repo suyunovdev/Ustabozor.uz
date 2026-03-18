@@ -14,6 +14,23 @@ interface AuthProps {
 
 type AuthView = 'LANDING' | 'LOGIN' | 'REGISTER' | 'ROLE_SELECT' | 'WORKER_SETUP';
 
+// --- Parol kuchi hisoblash ---
+const getPasswordStrength = (password: string): { score: number; label: string; color: string; bg: string } => {
+  if (!password) return { score: 0, label: '', color: '', bg: '' };
+  let score = 0;
+  if (password.length >= 6) score++;
+  if (password.length >= 10) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  if (score <= 1) return { score: 1, label: 'Juda zaif', color: 'bg-red-500', bg: 'bg-red-100 dark:bg-red-900/20' };
+  if (score === 2) return { score: 2, label: 'Zaif', color: 'bg-orange-500', bg: 'bg-orange-100 dark:bg-orange-900/20' };
+  if (score === 3) return { score: 3, label: "O'rtacha", color: 'bg-yellow-500', bg: 'bg-yellow-100 dark:bg-yellow-900/20' };
+  if (score === 4) return { score: 4, label: 'Kuchli', color: 'bg-green-500', bg: 'bg-green-100 dark:bg-green-900/20' };
+  return { score: 5, label: 'Juda kuchli', color: 'bg-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-900/20' };
+};
+
 // --- InputField Component (Moved OUTSIDE Auth to fix focus issue) ---
 interface InputFieldProps {
   icon: React.ElementType;
@@ -448,6 +465,20 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 showPassword={showRegPassword}
                 onTogglePassword={() => setShowRegPassword(!showRegPassword)}
               />
+
+              {regData.password && (() => {
+                const strength = getPasswordStrength(regData.password);
+                return (
+                  <div className="-mt-2 mb-2 px-1">
+                    <div className="flex gap-1 mb-1">
+                      {[1,2,3,4,5].map(i => (
+                        <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= strength.score ? strength.color : 'bg-gray-200 dark:bg-gray-700'}`} />
+                      ))}
+                    </div>
+                    <p className={`text-xs font-medium ${strength.color.replace('bg-', 'text-')}`}>{strength.label}</p>
+                  </div>
+                );
+              })()}
 
               <button
                 type="submit"

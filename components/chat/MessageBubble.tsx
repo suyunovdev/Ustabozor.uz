@@ -40,15 +40,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
     switch (message.status) {
       case MessageStatus.SENT:
       case 'SENT':
-        return <Check size={14} className="text-gray-400" />;
+        // Single check — sent, not yet delivered
+        return <Check size={13} className="text-white/50" title="Yuborildi" />;
       case MessageStatus.DELIVERED:
       case 'DELIVERED':
-        return <CheckCheck size={14} className="text-gray-400" />;
+        // Double check white — delivered but not read
+        return <CheckCheck size={13} className="text-white/70" title="Yetkazildi" />;
       case MessageStatus.READ:
       case 'READ':
-        return <CheckCheck size={14} className="text-blue-400" />;
+        // Double check cyan — read
+        return <CheckCheck size={13} className="text-cyan-300" title="O'qildi" />;
       default:
-        return <Check size={14} className="text-gray-400" />;
+        return <Check size={13} className="text-white/50" />;
     }
   };
 

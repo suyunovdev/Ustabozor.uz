@@ -20,6 +20,21 @@ const CATEGORIES = [
   { id: 9, name: 'SMM', icon: <div className="text-cyan-500 dark:text-cyan-400">📱</div>, color: 'bg-cyan-50 dark:bg-cyan-900/20' },
 ];
 
+const WorkerSkeleton = () => (
+  <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center space-x-4 animate-pulse">
+    <div className="w-14 h-14 rounded-xl bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+    <div className="flex-1 space-y-2">
+      <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded-full w-28" />
+      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full w-20" />
+      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full w-16" />
+    </div>
+    <div className="flex gap-2">
+      <div className="w-9 h-9 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+      <div className="w-16 h-9 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+    </div>
+  </div>
+);
+
 type SortKey = 'online' | 'rating' | 'reviews' | 'price';
 
 const sortWorkers = (data: WorkerProfile[], key: SortKey) => {
@@ -40,6 +55,8 @@ export const CustomerHome = () => {
   const [workers, setWorkers] = useState<WorkerProfile[]>([]);
   const [allWorkers, setAllWorkers] = useState<WorkerProfile[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>('online');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<LocationData | null>(null);
   const navigate = useNavigate();
 
@@ -47,16 +64,37 @@ export const CustomerHome = () => {
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
 
   useEffect(() => {
+    setIsLoading(true);
     MockService.getWorkers().then(data => {
       setAllWorkers(data);
       setWorkers(sortWorkers(data, 'online'));
+      setIsLoading(false);
     });
     setUserLocation(getSavedLocation());
   }, []);
 
   const handleSort = (key: SortKey) => {
     setSortKey(key);
-    setWorkers(sortWorkers(allWorkers, key));
+    const q = searchQuery.toLowerCase().trim();
+    const base = q
+      ? allWorkers.filter(w =>
+          `${w.name} ${w.surname}`.toLowerCase().includes(q) ||
+          w.skills.some(s => s.toLowerCase().includes(q))
+        )
+      : allWorkers;
+    setWorkers(sortWorkers(base, key));
+  };
+
+  const handleSearch = (q: string) => {
+    setSearchQuery(q);
+    const query = q.toLowerCase().trim();
+    const base = query
+      ? allWorkers.filter(w =>
+          `${w.name} ${w.surname}`.toLowerCase().includes(query) ||
+          w.skills.some(s => s.toLowerCase().includes(query))
+        )
+      : allWorkers;
+    setWorkers(sortWorkers(base, sortKey));
   };
 
   const handleChatWithWorker = async (workerId: string) => {
@@ -121,10 +159,20 @@ export const CustomerHome = () => {
           <div className="relative group">
             <input
               type="text"
-              placeholder="Xizmatlarni qidirish..."
-              className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none shadow-lg shadow-blue-900/20 dark:shadow-black/30 placeholder-gray-400 dark:placeholder-gray-500 transition-shadow focus:shadow-xl focus:ring-2 focus:ring-blue-400/50 dark:focus:ring-blue-500/50 border-none"
+              placeholder="Ism yoki ko'nikma bo'yicha qidirish..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full pl-12 pr-10 py-4 rounded-2xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none shadow-lg shadow-blue-900/20 dark:shadow-black/30 placeholder-gray-400 dark:placeholder-gray-500 transition-shadow focus:shadow-xl focus:ring-2 focus:ring-blue-400/50 dark:focus:ring-blue-500/50 border-none"
             />
             <Search className="absolute left-4 top-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
+            {searchQuery && (
+              <button
+                onClick={() => handleSearch('')}
+                className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <span className="text-lg leading-none">×</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -173,8 +221,20 @@ export const CustomerHome = () => {
           ))}
         </div>
 
+        {isLoading ? (
+          <div className="space-y-4">
+            {[...Array(4)].map((_, i) => <WorkerSkeleton key={i} />)}
+          </div>
+        ) : workers.length === 0 && searchQuery ? (
+          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+            <Search size={40} strokeWidth={1.5} />
+            <p className="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">"{searchQuery}" bo'yicha natija topilmadi</p>
+            <button onClick={() => handleSearch('')} className="mt-2 text-blue-500 text-xs font-medium">Tozalash</button>
+          </div>
+        ) : null}
+
         <div className="space-y-4">
-          {workers.map((worker) => (
+          {!isLoading && workers.map((worker) => (
             <div key={worker.id} className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow flex items-center space-x-4 relative">
               <div className="relative">
                 <img
@@ -194,9 +254,15 @@ export const CustomerHome = () => {
                   {worker.skills[0]} • {worker.isOnline ? <span className="text-green-500 font-bold">Online</span> : 'Offline'}
                 </p>
                 <div className="flex items-center mt-1">
-                  <Star size={12} className="text-yellow-400 fill-current" />
-                  <span className="text-xs font-bold ml-1 text-gray-800 dark:text-gray-200">{worker.rating}</span>
-                  <span className="text-xs text-gray-400 ml-1">({worker.ratingCount} baho)</span>
+                  {worker.rating != null ? (
+                    <>
+                      <Star size={12} className="text-yellow-400 fill-current" />
+                      <span className="text-xs font-bold ml-1 text-gray-800 dark:text-gray-200">{worker.rating}</span>
+                      <span className="text-xs text-gray-400 ml-1">({worker.ratingCount} baho)</span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-400">Baholanmagan</span>
+                  )}
                 </div>
               </div>
 
