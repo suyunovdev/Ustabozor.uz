@@ -39,7 +39,7 @@ export default function CustomerProfile() {
 
   useEffect(() => {
     if (!user) return;
-    OrdersAPI.getAll(user.id).then((list: any[]) => setTotalOrders(list.length)).catch(() => {});
+    OrdersAPI.getByCustomer(user.id).then((list: any[]) => setTotalOrders(list.length)).catch(() => {});
   }, [user?.id]);
 
   if (!user) return null;
@@ -378,9 +378,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   statsCol:  { paddingHorizontal: 16, marginTop: 16 },
 
   bannerWrap: { paddingHorizontal: 16, marginBottom: 16 },
-  banner:     { borderRadius: 20, padding: 16, overflow: 'hidden', background: 'transparent',
-                backgroundImage: undefined,
-                backgroundColor: '#6366F1' },
+  banner:     { borderRadius: 20, padding: 16, overflow: 'hidden', backgroundColor: '#6366F1' },
   bannerBlob: { position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.15)' },
   bannerRow:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
   bannerIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },

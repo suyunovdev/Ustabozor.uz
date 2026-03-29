@@ -300,7 +300,7 @@ export default function MyJobs() {
               {tab === 'ACTIVE' && (
                 <TouchableOpacity
                   style={styles.emptyBtn}
-                  onPress={() => router.push('/(worker)/')}
+                  onPress={() => router.push('/(worker)')}
                 >
                   <Text style={styles.emptyBtnText}>🔍  Yangi ish qidirish</Text>
                 </TouchableOpacity>
