@@ -4,7 +4,7 @@ import { User } from '../services/api';
 export interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (phone: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   register: (payload: any) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (u: User) => void;

@@ -1,147 +1,504 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  Image, Alert, ActivityIndicator, Modal, Linking,
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../hooks/useAuth';
-import { UsersAPI } from '../../services/api';
-import { COLORS } from '../../constants';
+import { useTheme } from '../../hooks/useTheme';
+import { UsersAPI, UserRole } from '../../services/api';
+import EditProfileModal from '../../components/EditProfileModal';
 
+/* ─── Weighted profile completion ────────────────────────────────────────── */
+const calcCompletion = (user: any) => {
+  const fields = [
+    { filled: !!user.name,                                                    w: 15 },
+    { filled: !!user.surname,                                                 w: 10 },
+    { filled: !!user.phone,                                                   w: 15 },
+    { filled: !!user.email,                                                   w: 15 },
+    { filled: !!(user.avatar && user.avatar.startsWith('http')),              w: 20 },
+    { filled: (user.rating || 0) > 0 && (user.ratingCount || 0) > 0,         w: 10 },
+    { filled: (user.skills || []).length > 0,                                 w: 10 },
+    { filled: (user.hourlyRate || 0) > 0,                                     w:  5 },
+  ];
+  return fields.reduce((s, f) => s + (f.filled ? f.w : 0), 0);
+};
+
+const progressColor = (pct: number, colors: any) =>
+  pct >= 90 ? '#10B981' : pct >= 60 ? colors.indigo : '#F59E0B';
+
+/* ─── MAIN ───────────────────────────────────────────────────────────────── */
 export default function WorkerProfile() {
   const { user, logout, setUser } = useAuth();
-  const [uploading, setUploading] = useState(false);
-  const hasRating = user?.rating != null && user?.ratingCount && user.ratingCount > 0;
+  const { isDark, toggleTheme, colors } = useTheme();
+
+  const [uploading, setUploading]     = useState(false);
+  const [logoutModal, setLogoutModal] = useState(false);
+  const [editModal, setEditModal]     = useState(false);
+  const [togglingOnline, setTogglingOnline] = useState(false);
+
+  if (!user) return null;
+
+  const completion = calcCompletion(user);
+  const pctColor   = progressColor(completion, colors);
+  const joinYear   = user.createdAt ? new Date(user.createdAt).getFullYear() : new Date().getFullYear();
+  const hasRating  = (user.rating ?? 0) > 0 && (user.ratingCount ?? 0) > 0;
+
+  const achievements = [
+    { icon: '🔧', label: 'Usta',           earned: true,                              color: colors.indigo,  bg: colors.indigoLight },
+    { icon: '✅', label: "To'liq profil",   earned: completion >= 90,                  color: '#10B981',      bg: '#ECFDF5' },
+    { icon: '⭐', label: '5 Yulduz',        earned: (user.rating ?? 0) >= 4.5,         color: '#F59E0B',      bg: '#FFFBEB' },
+    { icon: '🏆', label: '10+ ish',         earned: (user.completedJobs ?? 0) >= 10,   color: '#8B5CF6',      bg: '#F5F3FF' },
+  ];
 
   const handleAvatarChange = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      allowsEditing: true, aspect: [1, 1], quality: 0.85,
     });
     if (result.canceled || !result.assets[0]) return;
     setUploading(true);
     try {
-      const asset = result.assets[0];
-      const formData = new FormData();
-      formData.append('avatar', { uri: asset.uri, name: 'avatar.jpg', type: 'image/jpeg' } as any);
-      const updated = await UsersAPI.updateProfile(user!.id, formData);
+      const fd = new FormData();
+      fd.append('avatar', { uri: result.assets[0].uri, name: 'avatar.jpg', type: 'image/jpeg' } as any);
+      const updated = await UsersAPI.updateProfile(user.id, fd);
       setUser(updated);
-    } catch (e: any) {
-      Alert.alert('Xato', e.message);
-    } finally { setUploading(false); }
+    } catch (e: any) { Alert.alert('Xato', e.message); }
+    finally { setUploading(false); }
   };
 
-  const handleLogout = () => {
-    Alert.alert('Chiqish', 'Rostdan ham chiqmoqchimisiz?', [
-      { text: 'Yo\'q', style: 'cancel' },
-      { text: 'Ha', style: 'destructive', onPress: logout },
-    ]);
+  const handleToggleOnline = async () => {
+    setTogglingOnline(true);
+    try {
+      const fd = new FormData();
+      fd.append('isOnline', String(!user.isOnline));
+      const updated = await UsersAPI.updateProfile(user.id, fd);
+      setUser(updated);
+    } catch (e: any) { Alert.alert('Xato', e.message); }
+    finally { setTogglingOnline(false); }
   };
 
-  if (!user) return null;
+  const s = makeStyles(colors);
+
+  const menuSections = [
+    {
+      title: 'Profil',
+      items: [
+        { icon: '✏️', label: 'Shaxsiy ma\'lumotlar', sub: 'Tahrirlash',    action: () => setEditModal(true) },
+        { icon: '🔔', label: 'Bildirishnomalar',      sub: 'Ko\'rish',      action: () => {} },
+        { icon: '💼', label: 'Ko\'nikmalar',           sub: 'Boshqarish',   action: () => setEditModal(true) },
+      ],
+    },
+    {
+      title: 'Moliya',
+      items: [
+        { icon: '💳', label: 'Hamyon', sub: `${(user.balance ?? 0).toLocaleString()} so'm`, action: () => {} },
+      ],
+    },
+    {
+      title: 'Ish holati',
+      items: [
+        {
+          icon: user.isOnline ? '🟢' : '⚫',
+          label: user.isOnline ? 'Ish qabul qilmoqda' : 'Ish qabul qilmayapti',
+          sub: user.isOnline ? "Online — ishlar sizga ko'rsatiladi" : "Offline — ishlar ko'rsatilmaydi",
+          action: handleToggleOnline,
+          loading: togglingOnline,
+        },
+      ],
+    },
+    {
+      title: 'Ilova',
+      items: [
+        { icon: isDark ? '🌙' : '☀️', label: isDark ? 'Tungi rejim' : 'Kunduzgi rejim', sub: 'toggle', action: toggleTheme },
+      ],
+    },
+  ];
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.scroll}>
-      <View style={styles.headerBg}>
-        <TouchableOpacity style={styles.avatarWrap} onPress={handleAvatarChange} disabled={uploading}>
-          {user.avatar
-            ? <Image source={{ uri: user.avatar }} style={styles.avatar} />
-            : <View style={styles.avatarFallback}><Text style={styles.avatarLetter}>{user.name[0]}</Text></View>}
-          <View style={styles.editBadge}>
-            {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.editBadgeText}>✏️</Text>}
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.name}>{user.name} {user.surname}</Text>
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>🔧 Usta</Text>
-        </View>
-        {hasRating && (
-          <View style={styles.ratingRow}>
-            <Text style={styles.ratingStar}>⭐</Text>
-            <Text style={styles.ratingVal}>{user.rating?.toFixed(1)}</Text>
-            <Text style={styles.ratingCount}>({user.ratingCount} baho)</Text>
-          </View>
-        )}
-      </View>
+    <View style={[s.root, { backgroundColor: colors.bg }]}>
+      <ScrollView showsVerticalScrollIndicator={false}>
 
-      {/* Stats */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{user.completedJobs || 0}</Text>
-          <Text style={styles.statLabel}>Bajarilgan</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{hasRating ? user.rating?.toFixed(1) : '—'}</Text>
-          <Text style={styles.statLabel}>Reyting</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{user.balance.toLocaleString()}</Text>
-          <Text style={styles.statLabel}>Balans</Text>
-        </View>
-      </View>
+        {/* ── GRADIENT HEADER ── */}
+        <View style={s.headerBg}>
+          <View style={s.blob1} />
+          <View style={s.blob2} />
 
-      {/* Skills */}
-      {user.skills && user.skills.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ko'nikmalar</Text>
-          <View style={styles.skillsWrap}>
-            {user.skills.map(s => (
-              <View key={s} style={styles.skillChip}>
-                <Text style={styles.skillText}>{s}</Text>
+          {/* online pill */}
+          <TouchableOpacity
+            style={[s.onlinePill, user.isOnline ? s.onlinePillOn : s.onlinePillOff]}
+            onPress={handleToggleOnline}
+            disabled={togglingOnline}
+          >
+            {togglingOnline
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <>
+                  <View style={[s.onlineDot, user.isOnline ? s.dotOn : s.dotOff]} />
+                  <Text style={s.onlinePillTxt}>{user.isOnline ? 'Online' : 'Offline'}</Text>
+                </>
+            }
+          </TouchableOpacity>
+
+          {/* avatar */}
+          <TouchableOpacity style={s.avatarWrap} onPress={handleAvatarChange} disabled={uploading}>
+            {user.avatar
+              ? <Image source={{ uri: user.avatar }} style={s.avatar} />
+              : <View style={s.avatarFb}><Text style={s.avatarFbText}>{user.name?.charAt(0) ?? 'U'}</Text></View>
+            }
+            <View style={s.editBadge}>
+              {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.editBadgeText}>📷</Text>}
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── FLOATING PROFILE CARD ── */}
+        <View style={s.floatCardWrap}>
+          <View style={[s.floatCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={s.nameRow}>
+              <Text style={[s.name, { color: colors.text }]}>{user.name} {user.surname ?? ''}</Text>
+              <Text style={{ fontSize: 18 }}>✅</Text>
+            </View>
+            <View style={s.badgeRow}>
+              <View style={[s.badge, { backgroundColor: colors.indigoLight }]}>
+                <Text style={[s.badgeTxt, { color: colors.indigo }]}>🔧 Mutaxassis</Text>
+              </View>
+              <View style={[s.badge, { backgroundColor: '#FFFBEB' }]}>
+                <Text style={[s.badgeTxt, { color: '#92400E' }]}>⭐ {hasRating ? user.rating?.toFixed(1) : '5.0'}</Text>
+              </View>
+              <View style={[s.badge, user.isOnline ? { backgroundColor: '#ECFDF5' } : { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border }]}>
+                <Text style={[s.badgeTxt, { color: user.isOnline ? '#065F46' : colors.textSub }]}>
+                  {user.isOnline ? '🟢 Online' : '⚫ Offline'}
+                </Text>
+              </View>
+              <View style={[s.badge, { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border }]}>
+                <Text style={[s.badgeTxt, { color: colors.textSub }]}>📅 {joinYear}</Text>
+              </View>
+            </View>
+
+            {/* Skills preview */}
+            {user.skills && user.skills.length > 0 && (
+              <View style={s.skillsWrap}>
+                {user.skills.slice(0, 4).map((sk: string, i: number) => (
+                  <View key={i} style={[s.skillChip, { backgroundColor: colors.indigoLight }]}>
+                    <Text style={[s.skillTxt, { color: colors.indigo }]}>{sk}</Text>
+                  </View>
+                ))}
+                {user.skills.length > 4 && (
+                  <View style={[s.skillChip, { backgroundColor: colors.surfaceAlt }]}>
+                    <Text style={[s.skillTxt, { color: colors.textSub }]}>+{user.skills.length - 4}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* completion */}
+            <View style={s.completionWrap}>
+              <View style={s.completionHead}>
+                <Text style={[s.completionLbl, { color: colors.textMuted }]}>PROFIL TO'LDIRILGANLIGI</Text>
+                <Text style={[s.completionPct, { color: pctColor }]}>{completion}%</Text>
+              </View>
+              <View style={[s.progressBg, { backgroundColor: colors.border }]}>
+                <View style={[s.progressFill, { width: `${completion}%` as any, backgroundColor: pctColor }]} />
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* ── STAT CARDS ── */}
+        <View style={s.statsCol}>
+          <StatCard icon="💰" label="Hamyon"     value={`${(user.balance ?? 0).toLocaleString()}`} sub="Kartalar va operatsiyalar"                  color="#10B981" colors={colors} onPress={() => {}} />
+          <StatCard icon="⭐" label="Reyting"    value={hasRating ? user.rating?.toFixed(1) : '—'} sub={`${user.ratingCount ?? 0} ta baho`}         color="#F59E0B" colors={colors} />
+          <StatCard icon="✅" label="Bajarilgan" value={String(user.completedJobs ?? 0)}             sub="Muvaffaqiyatli bajarilgan ishlar"           color={colors.indigo} colors={colors} onPress={() => {}} />
+        </View>
+
+        {/* ── EARNINGS BANNER ── */}
+        <View style={s.bannerWrap}>
+          <View style={s.banner}>
+            <View style={s.bannerBlob} />
+            <View style={s.bannerRow}>
+              <View style={s.bannerIcon}><Text style={{ fontSize: 22 }}>💵</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.bannerSub}>DAROMAD TIZIMI</Text>
+                <Text style={s.bannerTitle}>Har bir ish uchun 90% daromad olasiz 🎯</Text>
+              </View>
+              <View style={s.bannerBadge}>
+                <Text style={s.bannerBadgeTxt}>90%</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* ── ACHIEVEMENTS ── */}
+        <View style={s.sectionWrap}>
+          <View style={s.sectionHead}>
+            <Text style={[s.sectionTitle, { color: colors.text }]}>🏆 Yutuqlar</Text>
+            <Text style={[s.sectionSub, { color: colors.indigo }]}>
+              {achievements.filter(a => a.earned).length}/{achievements.length}
+            </Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.achieveScroll}>
+            {achievements.map((a, i) => (
+              <View key={i} style={[s.achieveItem, !a.earned && s.achieveDim]}>
+                <View style={[s.achieveCircle, { backgroundColor: a.bg }]}>
+                  <Text style={{ fontSize: 24 }}>{a.icon}</Text>
+                  {a.earned && (
+                    <View style={s.achieveTick}><Text style={{ fontSize: 8, color: '#fff' }}>✓</Text></View>
+                  )}
+                </View>
+                <Text style={[s.achieveLabel, { color: colors.textSub }]}>{a.label}</Text>
               </View>
             ))}
-          </View>
+          </ScrollView>
         </View>
-      )}
 
-      {/* Info */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Ma'lumotlar</Text>
-        {[
-          { label: '📱 Telefon', value: user.phone },
-          { label: '💰 Soatlik narx', value: user.hourlyRate ? `${user.hourlyRate.toLocaleString()} so'm` : 'Ko\'rsatilmagan' },
-          { label: '📅 Ro\'yxat sanasi', value: user.createdAt ? new Date(user.createdAt).toLocaleDateString('uz-UZ') : '—' },
-        ].map(row => (
-          <View key={row.label} style={styles.infoRow}>
-            <Text style={styles.infoLabel}>{row.label}</Text>
-            <Text style={styles.infoValue}>{row.value}</Text>
+        {/* ── INFO ── */}
+        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[s.cardTitle, { color: colors.text }]}>Ma'lumotlar</Text>
+          {[
+            { icon: '📱', label: 'Telefon',        value: user.phone },
+            { icon: '💰', label: 'Soatlik narx',   value: user.hourlyRate ? `${user.hourlyRate.toLocaleString()} so'm` : 'Ko\'rsatilmagan' },
+            { icon: '📅', label: 'A\'zo bo\'ldi',   value: user.createdAt ? new Date(user.createdAt).toLocaleDateString('uz-UZ') : '—' },
+          ].map(row => (
+            <View key={row.label} style={[s.infoRow, { borderBottomColor: colors.borderLight }]}>
+              <Text style={[s.infoLbl, { color: colors.textSub }]}>{row.icon} {row.label}</Text>
+              <Text style={[s.infoVal, { color: colors.text }]}>{row.value}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* ── MENU SECTIONS ── */}
+        {menuSections.map(section => (
+          <View key={section.title} style={s.menuSection}>
+            <Text style={[s.menuSectionTitle, { color: colors.textMuted }]}>{section.title.toUpperCase()}</Text>
+            <View style={[s.menuCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {section.items.map((item: any, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={[s.menuRow, i < section.items.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderLight }]}
+                  onPress={item.action}
+                  disabled={item.loading}
+                >
+                  <View style={[s.menuIconWrap, { backgroundColor: colors.surfaceAlt }]}>
+                    {item.loading
+                      ? <ActivityIndicator size="small" color={colors.indigo} />
+                      : <Text style={{ fontSize: 16 }}>{item.icon}</Text>
+                    }
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.menuLbl, { color: colors.text }]}>{item.label}</Text>
+                    {item.sub && item.sub !== 'toggle' && (
+                      <Text style={[s.menuSub, { color: colors.textMuted }]}>{item.sub}</Text>
+                    )}
+                  </View>
+                  {item.sub === 'toggle'
+                    ? <ThemeToggle isDark={isDark} colors={colors} />
+                    : <Text style={[s.menuArrow, { color: colors.border }]}>›</Text>
+                  }
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         ))}
-      </View>
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-        <Text style={styles.logoutText}>🚪 Chiqish</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {/* ── LOGOUT ── */}
+        <View style={{ marginHorizontal: 16, marginTop: 4, marginBottom: 8 }}>
+          <TouchableOpacity style={[s.logoutBtn, { backgroundColor: colors.redLight, borderColor: colors.redBorder }]} onPress={() => setLogoutModal(true)}>
+            <Text style={[s.logoutTxt, { color: colors.red }]}>🚪  Chiqish</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── FOOTER ── */}
+        <View style={s.footer}>
+          <View style={s.socials}>
+            <TouchableOpacity onPress={() => Linking.openURL('https://t.me/ustabozor')}><Text style={s.socialIcon}>✈️</Text></TouchableOpacity>
+            <TouchableOpacity><Text style={s.socialIcon}>📸</Text></TouchableOpacity>
+            <TouchableOpacity><Text style={s.socialIcon}>🌐</Text></TouchableOpacity>
+          </View>
+          <Text style={[s.footerTxt, { color: colors.textMuted }]}>Ustabozor.uz Platformasi</Text>
+          <Text style={[s.footerVer, { color: colors.border }]}>v1.3.0 • Build {new Date().getFullYear()}</Text>
+        </View>
+
+        <View style={{ height: 40 }} />
+
+        {/* ── LOGOUT MODAL ── */}
+        <Modal visible={logoutModal} transparent animationType="fade">
+          <View style={[lm.overlay, { backgroundColor: colors.overlay }]}>
+            <View style={[lm.box, { backgroundColor: colors.surface }]}>
+              <View style={[lm.iconWrap, { backgroundColor: colors.redLight }]}>
+                <Text style={{ fontSize: 32 }}>🚪</Text>
+              </View>
+              <Text style={[lm.title, { color: colors.text }]}>Chiqish</Text>
+              <Text style={[lm.sub, { color: colors.textSub }]}>
+                Haqiqatan ham hisobingizdan chiqmoqchimisiz? Keyingi safar kirish uchun parolingiz kerak bo'ladi.
+              </Text>
+              <View style={lm.btns}>
+                <TouchableOpacity style={[lm.cancel, { backgroundColor: colors.surfaceAlt }]} onPress={() => setLogoutModal(false)}>
+                  <Text style={[lm.cancelTxt, { color: colors.textSub }]}>Bekor qilish</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={lm.confirm} onPress={() => { setLogoutModal(false); logout(); }}>
+                  <Text style={lm.confirmTxt}>Ha, chiqish</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </ScrollView>
+
+      <EditProfileModal
+        visible={editModal}
+        onClose={() => setEditModal(false)}
+        user={user}
+        onSave={setUser}
+      />
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.gray[50] },
-  scroll: { paddingBottom: 40 },
-  headerBg: { backgroundColor: COLORS.primary, alignItems: 'center', paddingTop: 60, paddingBottom: 30 },
-  avatarWrap: { position: 'relative', marginBottom: 12 },
-  avatar: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: '#fff' },
-  avatarFallback: { width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff' },
-  avatarLetter: { fontSize: 36, fontWeight: '800', color: '#fff' },
-  editBadge: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.primaryDark, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
-  editBadgeText: { fontSize: 13 },
-  name: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 6 },
-  roleBadge: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 8 },
-  roleText: { fontSize: 13, color: '#fff', fontWeight: '600' },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ratingStar: { fontSize: 16 },
-  ratingVal: { fontSize: 18, fontWeight: '800', color: '#fff' },
-  ratingCount: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
-  statsRow: { flexDirection: 'row', margin: 16, gap: 10 },
-  statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
-  statValue: { fontSize: 18, fontWeight: '800', color: COLORS.primary },
-  statLabel: { fontSize: 11, color: COLORS.gray[400], marginTop: 4 },
-  section: { backgroundColor: '#fff', marginHorizontal: 16, marginBottom: 12, borderRadius: 16, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.gray[900], marginBottom: 12 },
-  skillsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  skillChip: { backgroundColor: COLORS.primaryLight, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  skillText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.gray[50] },
-  infoLabel: { fontSize: 14, color: COLORS.gray[500] },
-  infoValue: { fontSize: 14, fontWeight: '600', color: COLORS.gray[800] },
-  logoutBtn: { margin: 16, backgroundColor: '#FEF2F2', borderRadius: 14, padding: 16, alignItems: 'center' },
-  logoutText: { fontSize: 15, fontWeight: '700', color: '#EF4444' },
+/* ── ThemeToggle ── */
+function ThemeToggle({ isDark, colors }: { isDark: boolean; colors: any }) {
+  return (
+    <View style={[tt.track, { backgroundColor: isDark ? colors.indigo : colors.border }]}>
+      <View style={[tt.thumb, isDark && tt.thumbOn]}>
+        <Text style={{ fontSize: 10 }}>{isDark ? '🌙' : '☀️'}</Text>
+      </View>
+    </View>
+  );
+}
+const tt = StyleSheet.create({
+  track:   { width: 48, height: 28, borderRadius: 14, padding: 3, justifyContent: 'center' },
+  thumb:   { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 2 },
+  thumbOn: { alignSelf: 'flex-end' },
+});
+
+/* ── StatCard ── */
+function StatCard({ icon, label, value, sub, color, colors, onPress }: any) {
+  const bg = color === '#10B981' ? '#ECFDF5' : color === '#F59E0B' ? '#FFFBEB' : colors.indigoLight;
+  return (
+    <TouchableOpacity
+      style={[sc.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.75 : 1}
+    >
+      <View style={[sc.iconWrap, { backgroundColor: bg }]}>
+        <Text style={{ fontSize: 22 }}>{icon}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+          <Text style={[sc.value, { color: colors.text }]}>{value}</Text>
+          {label === 'Reyting' && <Text style={{ fontSize: 14 }}>⭐</Text>}
+        </View>
+        <Text style={[sc.label, { color: colors.textSub }]}>{label}</Text>
+        {sub && <Text style={[sc.sub, { color: colors.textMuted }]}>{sub}</Text>}
+      </View>
+      {onPress && <Text style={[sc.arrow, { color: colors.border }]}>›</Text>}
+    </TouchableOpacity>
+  );
+}
+const sc = StyleSheet.create({
+  card:     { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 18, padding: 16, marginBottom: 10, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
+  iconWrap: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  value:    { fontSize: 22, fontWeight: '900' },
+  label:    { fontSize: 13, fontWeight: '600', marginTop: 1 },
+  sub:      { fontSize: 11, marginTop: 1 },
+  arrow:    { fontSize: 24 },
+});
+
+const makeStyles = (c: any) => StyleSheet.create({
+  root: { flex: 1 },
+
+  headerBg:      { height: 220, backgroundColor: '#4F46E5', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  blob1:         { position: 'absolute', top: -40, left: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,255,255,0.07)' },
+  blob2:         { position: 'absolute', bottom: -60, right: -30, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(139,92,246,0.2)' },
+
+  onlinePill:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 14 },
+  onlinePillOn:  { backgroundColor: 'rgba(34,197,94,0.25)' },
+  onlinePillOff: { backgroundColor: 'rgba(255,255,255,0.15)' },
+  onlineDot:     { width: 8, height: 8, borderRadius: 4 },
+  dotOn:         { backgroundColor: '#22C55E' },
+  dotOff:        { backgroundColor: '#94A3B8' },
+  onlinePillTxt: { fontSize: 12, fontWeight: '700', color: '#fff' },
+
+  avatarWrap:    { position: 'relative' },
+  avatar:        { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  avatarFb:      { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#fff' },
+  avatarFbText:  { fontSize: 40, fontWeight: '800', color: '#fff' },
+  editBadge:     { position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, backgroundColor: '#3730A3', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  editBadgeText: { fontSize: 15 },
+
+  floatCardWrap: { paddingHorizontal: 20, marginTop: -28 },
+  floatCard:     { borderRadius: 24, padding: 20, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 8 },
+  nameRow:       { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  name:          { fontSize: 22, fontWeight: '900', flex: 1 },
+  badgeRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  badge:         { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  badgeTxt:      { fontSize: 12, fontWeight: '700' },
+  skillsWrap:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
+  skillChip:     { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  skillTxt:      { fontSize: 12, fontWeight: '600' },
+  completionWrap:{ marginTop: 4 },
+  completionHead:{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  completionLbl: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  completionPct: { fontSize: 10, fontWeight: '800' },
+  progressBg:    { height: 8, borderRadius: 4, overflow: 'hidden' },
+  progressFill:  { height: '100%', borderRadius: 4 },
+
+  statsCol: { paddingHorizontal: 16, marginTop: 16 },
+
+  bannerWrap:     { paddingHorizontal: 16, marginBottom: 16 },
+  banner:         { borderRadius: 20, padding: 16, overflow: 'hidden', backgroundColor: '#7C3AED' },
+  bannerBlob:     { position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.15)' },
+  bannerRow:      { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bannerIcon:     { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  bannerSub:      { fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: '700', letterSpacing: 0.5, marginBottom: 2 },
+  bannerTitle:    { fontSize: 13, color: '#fff', fontWeight: '700', flex: 1 },
+  bannerBadge:    { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
+  bannerBadgeTxt: { fontSize: 16, fontWeight: '900', color: '#fff' },
+
+  sectionWrap:  { paddingHorizontal: 16, marginBottom: 16 },
+  sectionHead:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  sectionTitle: { fontSize: 14, fontWeight: '800' },
+  sectionSub:   { fontSize: 12, fontWeight: '700' },
+  achieveScroll:{ gap: 16, paddingBottom: 4 },
+  achieveItem:  { alignItems: 'center', gap: 6, width: 72 },
+  achieveDim:   { opacity: 0.35 },
+  achieveCircle:{ width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  achieveTick:  { position: 'absolute', bottom: -2, right: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: '#10B981', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  achieveLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
+
+  card:      { marginHorizontal: 16, marginBottom: 12, borderRadius: 18, padding: 16, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
+  cardTitle: { fontSize: 14, fontWeight: '800', marginBottom: 12 },
+  infoRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1 },
+  infoLbl:   { fontSize: 13 },
+  infoVal:   { fontSize: 13, fontWeight: '600' },
+
+  menuSection:      { paddingHorizontal: 16, marginBottom: 8 },
+  menuSectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginBottom: 8, paddingLeft: 4 },
+  menuCard:         { borderRadius: 18, borderWidth: 1, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
+  menuRow:          { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  menuIconWrap:     { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  menuLbl:          { fontSize: 15, fontWeight: '600' },
+  menuSub:          { fontSize: 11, marginTop: 1 },
+  menuArrow:        { fontSize: 22, fontWeight: '300' },
+
+  logoutBtn: { borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1 },
+  logoutTxt: { fontSize: 15, fontWeight: '800' },
+
+  footer:    { alignItems: 'center', paddingVertical: 20 },
+  socials:   { flexDirection: 'row', gap: 20, marginBottom: 10 },
+  socialIcon:{ fontSize: 22 },
+  footerTxt: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  footerVer: { fontSize: 10 },
+});
+
+const lm = StyleSheet.create({
+  overlay:    { flex: 1, justifyContent: 'center', padding: 32 },
+  box:        { borderRadius: 28, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 12 },
+  iconWrap:   { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  title:      { fontSize: 22, fontWeight: '900', marginBottom: 8 },
+  sub:        { fontSize: 13, textAlign: 'center', marginBottom: 28, lineHeight: 20 },
+  btns:       { flexDirection: 'row', gap: 12, width: '100%' },
+  cancel:     { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  cancelTxt:  { fontSize: 14, fontWeight: '700' },
+  confirm:    { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#DC2626', alignItems: 'center', shadowColor: '#DC2626', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  confirmTxt: { fontSize: 14, fontWeight: '800', color: '#fff' },
 });

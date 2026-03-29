@@ -7,7 +7,7 @@ export enum OrderStatus { PENDING = 'PENDING', ACCEPTED = 'ACCEPTED', IN_PROGRES
 export enum MessageStatus { SENT = 'SENT', DELIVERED = 'DELIVERED', READ = 'READ' }
 
 export interface User {
-  id: string; name: string; surname?: string; phone: string; email?: string;
+  _id: string; id: string; name: string; surname?: string; phone: string; email?: string;
   role: UserRole; avatar?: string; balance: number; rating?: number;
   ratingCount?: number; isOnline?: boolean; skills?: string[];
   completedJobs?: number; hourlyRate?: number; createdAt?: string; isBanned?: boolean;
@@ -37,7 +37,7 @@ export interface Notification {
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 const transformUser = (u: any): User => ({
-  id: u._id || u.id, name: u.name, surname: u.surname, phone: u.phone,
+  _id: u._id || u.id, id: u._id || u.id, name: u.name, surname: u.surname, phone: u.phone,
   email: u.email, role: u.role, avatar: u.avatar, balance: u.balance || 0,
   rating: u.rating, ratingCount: u.ratingCount, isOnline: u.isOnline || false,
   skills: u.skills || [], completedJobs: u.completedJobs || 0,
@@ -56,36 +56,52 @@ const transformOrder = (o: any): Order => ({
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = await AsyncStorage.getItem('token');
-  const res = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
-  return data;
+  const isFormData = options.body instanceof FormData;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000); // 15s timeout
+
+  try {
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        // FormData bo'lsa Content-Type o'rnatilmaydi — RN o'zi boundary qo'shadi
+        ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+    return data;
+  } catch (e: any) {
+    if (e.name === 'AbortError') throw new Error('Server bilan aloqa yo\'q (timeout)');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const AuthAPI = {
-  login: async (phone: string, password: string) => {
+  login: async (email: string, password: string) => {
     const data: any = await request('/auth/login', {
-      method: 'POST', body: JSON.stringify({ phone, password }),
+      method: 'POST', body: JSON.stringify({ email, password }),
     });
+    const user = transformUser(data);
     await AsyncStorage.setItem('token', data.token);
-    await AsyncStorage.setItem('user', JSON.stringify(transformUser(data.user)));
-    return { token: data.token, user: transformUser(data.user) };
+    await AsyncStorage.setItem('user', JSON.stringify(user));
+    return { token: data.token, user };
   },
-  register: async (payload: { name: string; surname: string; phone: string; password: string; role: UserRole }) => {
+  register: async (payload: { name: string; surname: string; phone: string; email: string; password: string; role: UserRole }) => {
     const data: any = await request('/auth/register', {
       method: 'POST', body: JSON.stringify(payload),
     });
+    const user = transformUser(data);
     await AsyncStorage.setItem('token', data.token);
-    await AsyncStorage.setItem('user', JSON.stringify(transformUser(data.user)));
-    return { token: data.token, user: transformUser(data.user) };
+    await AsyncStorage.setItem('user', JSON.stringify(user));
+    return { token: data.token, user };
   },
   logout: async () => {
     await AsyncStorage.removeItem('token');
@@ -153,6 +169,22 @@ export const OrdersAPI = {
   getAvailableForWorker: async (): Promise<Order[]> => {
     const data: any = await request('/orders?status=PENDING');
     return Array.isArray(data) ? data.map(transformOrder) : [];
+  },
+  getByWorker: async (workerId: string): Promise<Order[]> => {
+    const data: any = await request(`/orders?workerId=${workerId}`);
+    return Array.isArray(data) ? data.map(transformOrder) : [];
+  },
+  submitReview: async (orderId: string, rating: number, comment: string): Promise<Order> => {
+    const data: any = await request(`/orders/${orderId}/review`, {
+      method: 'POST', body: JSON.stringify({ rating, comment }),
+    });
+    return transformOrder(data);
+  },
+  cancel: async (orderId: string): Promise<Order> => {
+    const data: any = await request(`/orders/${orderId}`, {
+      method: 'PUT', body: JSON.stringify({ status: 'CANCELLED' }),
+    });
+    return transformOrder(data);
   },
 };
 

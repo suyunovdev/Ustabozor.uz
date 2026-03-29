@@ -1,39 +1,53 @@
 import { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../hooks/useAuth';
 import { AuthAPI, User, UserRole } from '../services/api';
 import { registerForPushNotifications } from '../services/pushNotifications';
-import { useRouter } from 'expo-router';
+import { ThemeContext, useThemeState } from '../hooks/useTheme';
 
-export default function RootLayout() {
-  const [user, setUserState] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+function NavigationGuard({ user, loading }: { user: User | null; loading: boolean }) {
   const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
-    (async () => {
-      try {
-        const stored = await AuthAPI.getStoredUser();
-        if (stored) {
-          setUserState(stored);
-        }
-      } finally {
-        setLoading(false);
+    if (loading) return;
+
+    const inAuth = segments[0] === '(auth)';
+    const inCustomer = segments[0] === '(customer)';
+    const inWorker = segments[0] === '(worker)';
+
+    if (!user && !inAuth) {
+      router.replace('/(auth)');
+    } else if (user) {
+      const targetGroup = user.role === UserRole.WORKER ? '(worker)' : '(customer)';
+      if (inAuth || (!inCustomer && !inWorker && segments[0] !== 'order' && segments[0] !== 'chat')) {
+        router.replace(`/${targetGroup}` as any);
       }
-    })();
+    }
+  }, [user, loading, segments]);
+
+  return null;
+}
+
+export default function RootLayout() {
+  const theme = useThemeState();
+  const [user, setUserState] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    AuthAPI.getStoredUser().then(stored => {
+      if (stored) setUserState(stored);
+    }).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    if (user) {
-      registerForPushNotifications(user.id).catch(() => {});
-    }
+    if (user) registerForPushNotifications(user.id).catch(() => {});
   }, [user?.id]);
 
-  const login = async (phone: string, password: string) => {
-    const { user: u } = await AuthAPI.login(phone, password);
+  const login = async (email: string, password: string) => {
+    const { user: u } = await AuthAPI.login(email, password);
     setUserState(u);
   };
 
@@ -56,19 +70,12 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser: setUserState }}>
-      <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }}>
-        {!user ? (
-          <Stack.Screen name="(auth)" />
-        ) : user.role === UserRole.WORKER ? (
-          <Stack.Screen name="(worker)" />
-        ) : (
-          <Stack.Screen name="(customer)" />
-        )}
-        <Stack.Screen name="order/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
-      </Stack>
-    </AuthContext.Provider>
+    <ThemeContext.Provider value={theme}>
+      <AuthContext.Provider value={{ user, loading, login, register, logout, setUser: setUserState }}>
+        <StatusBar style={theme.isDark ? 'light' : 'dark'} />
+        <NavigationGuard user={user} loading={loading} />
+        <Slot />
+      </AuthContext.Provider>
+    </ThemeContext.Provider>
   );
 }

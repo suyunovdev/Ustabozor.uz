@@ -11,7 +11,7 @@ import { COLORS } from '../../constants';
 export default function RegisterScreen() {
   const { register } = useAuth();
   const router = useRouter();
-  const [form, setForm] = useState({ name: '', surname: '', phone: '', password: '' });
+  const [form, setForm] = useState({ name: '', surname: '', phone: '', email: '', password: '' });
   const [role, setRole] = useState<UserRole>(UserRole.CUSTOMER);
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -19,7 +19,7 @@ export default function RegisterScreen() {
   const update = (key: string, val: string) => setForm(p => ({ ...p, [key]: val }));
 
   const handleRegister = async () => {
-    if (!form.name || !form.phone || !form.password) {
+    if (!form.name || !form.phone || !form.email || !form.password) {
       Alert.alert('Xato', 'Barcha maydonlarni to\'ldiring');
       return;
     }
@@ -73,6 +73,9 @@ export default function RegisterScreen() {
 
         <Text style={styles.label}>Telefon</Text>
         <TextInput style={styles.input} placeholder="+998 90 000 00 00" value={form.phone} onChangeText={v => update('phone', v)} keyboardType="phone-pad" />
+
+        <Text style={styles.label}>Email</Text>
+        <TextInput style={styles.input} placeholder="example@gmail.com" value={form.email} onChangeText={v => update('email', v)} keyboardType="email-address" autoCapitalize="none" />
 
         <Text style={styles.label}>Parol</Text>
         <View style={styles.passWrap}>

@@ -1,5 +1,5 @@
-export const API_URL = 'http://192.168.1.105:5001/api';
-export const SOCKET_URL = 'http://192.168.1.105:5001';
+export const API_URL = 'http://192.168.10.180:5001/api';
+export const SOCKET_URL = 'http://192.168.10.180:5001';
 
 export const COLORS = {
   primary: '#2563EB',
