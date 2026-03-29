@@ -1,5 +1,5 @@
-export const API_URL = 'http://192.168.10.180:5001/api';
-export const SOCKET_URL = 'http://192.168.10.180:5001';
+export const API_URL = 'https://ustabozor-backend.onrender.com/api';
+export const SOCKET_URL = 'https://ustabozor-backend.onrender.com';
 
 export const COLORS = {
   primary: '#2563EB',
