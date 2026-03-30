@@ -174,7 +174,13 @@ export default function AuthScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.primaryBtn} onPress={handleLogin} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Kirish</Text>}
+              {loading
+                ? <View style={{ alignItems: 'center' }}>
+                    <ActivityIndicator color="#fff" />
+                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 4 }}>Ulanmoqda...</Text>
+                  </View>
+                : <Text style={styles.primaryBtnText}>Kirish</Text>
+              }
             </TouchableOpacity>
 
             <View style={styles.dividerRow}>

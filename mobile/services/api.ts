@@ -59,7 +59,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const isFormData = options.body instanceof FormData;
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15_000); // 15s timeout
+  const timer = setTimeout(() => controller.abort(), 60_000); // 60s timeout (Render cold start)
 
   try {
     const res = await fetch(`${API_URL}${endpoint}`, {
@@ -76,7 +76,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
     return data;
   } catch (e: any) {
-    if (e.name === 'AbortError') throw new Error('Server bilan aloqa yo\'q (timeout)');
+    if (e.name === 'AbortError') throw new Error('Server javob bermayapti. Iltimos qaytadan urinib ko\'ring.');
     throw e;
   } finally {
     clearTimeout(timer);
