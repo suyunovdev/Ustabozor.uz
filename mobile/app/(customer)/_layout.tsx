@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { useUnreadCount } from '../../hooks/useUnreadCount';
 
@@ -33,6 +34,8 @@ function ChatTabIcon({ focused }: { focused: boolean }) {
 
 export default function CustomerLayout() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 60 + insets.bottom;
   return (
     <Tabs
       screenOptions={{
@@ -41,8 +44,8 @@ export default function CustomerLayout() {
           backgroundColor: colors.tabBar,
           borderTopWidth: 1,
           borderTopColor: colors.tabBorder,
-          height: 64,
-          paddingBottom: 8,
+          height: tabBarHeight,
+          paddingBottom: insets.bottom + 4,
           paddingTop: 6,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
